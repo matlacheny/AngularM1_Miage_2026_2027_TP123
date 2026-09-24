@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Utilisation de la session</title>
+<style>
+  :root { color-scheme: light; }
+  body {
+    margin: 0;
+    background: #f9f9f7;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .viz-root {
+    --surface-1: #fcfcfb;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --gridline: #e1e0d9;
+    --series-1: #2a78d6; /* blue */
+    --series-2: #eb6834; /* orange */
+    --series-3: #1baf7a; /* aqua */
+    --series-4: #eda100; /* yellow */
+    width: 100%;
+    max-width: 640px;
+    background: var(--surface-1);
+    border: 1px solid var(--gridline);
+    border-radius: 12px;
+    padding: 24px 28px 20px;
+    box-sizing: border-box;
+  }
+  h1 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 2px;
+  }
+  .sub {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin: 0 0 22px;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 168px 1fr 46px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .label {
+    font-size: 13px;
+    color: var(--text-primary);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .track {
+    background: var(--gridline);
+    border-radius: 4px;
+    height: 16px;
+    position: relative;
+  }
+  .bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: filter 0.15s ease;
+    cursor: default;
+  }
+  .bar:hover { filter: brightness(1.08); }
+  .pct {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .tooltip {
+    position: absolute;
+    top: -34px;
+    left: 168px;
+    background: var(--text-primary);
+    color: #fff;
+    font-size: 11.5px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+  }
+  .row:hover .tooltip { opacity: 1; }
+  .foot {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--gridline);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <div class="viz-root">
+    <h1>Où sont passés les tokens de cette session</h1>
+    <p class="sub">Répartition pondérée (coût effectif) par grande catégorie d'activité</p>
+
+    <div class="row">
+      <div class="label">Instructions système</div>
+      <div class="track"><div class="bar" style="width:54.6%; background:var(--series-1);"></div></div>
+      <div class="pct">54.6%</div>
+      <div class="tooltip">Prompt système + liste d'outils, relus à chaque tour</div>
+    </div>
+
+    <div class="row">
+      <div class="label">Conversation &amp; réflexion</div>
+      <div class="track"><div class="bar" style="width:38.1%; background:var(--series-2);"></div></div>
+      <div class="pct">38.1%</div>
+      <div class="tooltip">Discussion, lecture des erreurs, réponses rédigées</div>
+    </div>
+
+    <div class="row">
+      <div class="label">Accès à ton ordinateur</div>
+      <div class="track"><div class="bar" style="width:6.9%; background:var(--series-3);"></div></div>
+      <div class="pct">6.9%</div>
+      <div class="tooltip">Commandes exécutées sur ton PC, navigateur</div>
+    </div>
+
+    <div class="row">
+      <div class="label">Fichiers du projet</div>
+      <div class="track"><div class="bar" style="width:0.4%; background:var(--series-4);"></div></div>
+      <div class="pct">0.4%</div>
+      <div class="tooltip">Lecture/écriture directe de fichiers</div>
+    </div>
+
+    <p class="foot">Estimation approximative, pondérée pour refléter le coût réel (les tokens générés ou réécrits comptent plus lourd que ceux simplement relus en cache).</p>
+  </div>
+</body>
+</html>

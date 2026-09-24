@@ -5,8 +5,18 @@
   </div>
   <nav aria-label="Navigation principale">
     <a routerLink="/tracks">Backing tracks</a>
-    <a routerLink="/profile">Profil</a>
-    <a routerLink="/login">Connexion</a>
+    @if (auth.token()) {
+      <a routerLink="/profile">
+        Profil
+        @if (auth.currentUser(); as user) {
+          ({{ user.name }})
+        }
+      </a>
+      <button type="button" (click)="logout()">Se déconnecter</button>
+    } @else {
+      <a routerLink="/login">Connexion</a>
+      <a routerLink="/register">Créer un compte</a>
+    }
   </nav>
 </header>
 

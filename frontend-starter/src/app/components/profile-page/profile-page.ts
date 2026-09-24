@@ -13,6 +13,10 @@ export class ProfilePageComponent {
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
   });
 
+  constructor() {
+    this.load();
+  }
+
   load(): void {
     this.auth.profile().subscribe({
       next: (user) => {
