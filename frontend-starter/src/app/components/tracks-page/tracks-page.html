@@ -20,15 +20,25 @@
         />
       </label>
 
-      @if (uploading()) {
-        <progress [value]="uploadProgress()" max="100">{{ uploadProgress() }}%</progress>
-        <p>{{ uploadProgress() }}%</p>
-      }
-      @if (uploadError()) {
-        <p class="error" role="alert">{{ uploadError() }}</p>
-      }
-      @if (uploadSuccess()) {
-        <p class="success" role="status">{{ uploadSuccess() }}</p>
+      @switch (uploadStatus()) {
+        @case ('uploading') {
+          <progress [value]="uploadProgress()" max="100" aria-label="Progression de l'envoi">
+            {{ uploadProgress() }}%
+          </progress>
+          <p role="status">Envoi en cours : {{ uploadProgress() }}%</p>
+        }
+        @case ('success') {
+          <p class="success" role="status">{{ uploadSuccess() }}</p>
+        }
+        @case ('error') {
+          <p class="error" role="alert">{{ uploadError() }}</p>
+        }
+        @case ('idle') {
+          <!-- Erreur de validation frontend (avant tout appel HTTP), sinon rien. -->
+          @if (uploadError()) {
+            <p class="error" role="alert">{{ uploadError() }}</p>
+          }
+        }
       }
 
       <button type="button" (click)="upload()" [disabled]="!file || uploading()">
@@ -81,14 +91,23 @@
               </dl>
             </div>
             <div class="track-card-actions">
-              <button type="button" (click)="play(track)" [attr.aria-label]="'Lire ' + track.title">▶</button>
+              <button
+                type="button"
+                (click)="play(track)"
+                [disabled]="deletingId() === track.id"
+                [attr.aria-label]="'Lire ' + track.title"
+              >
+                ▶
+              </button>
               <button
                 type="button"
                 class="danger"
                 (click)="remove(track)"
+                [disabled]="deletingId() !== null"
                 [attr.aria-label]="'Supprimer ' + track.title"
+                [attr.aria-busy]="deletingId() === track.id"
               >
-                🗑
+                {{ deletingId() === track.id ? 'Suppression…' : 'Supprimer' }}
               </button>
             </div>
           </article>
@@ -98,9 +117,9 @@
       </div>
 
       <div class="pager">
-        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Préc.</button>
+        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
         <span>Page {{ page() }} / {{ pages() }}</span>
-        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suiv.</button>
+        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
       </div>
 
       @if (audioUrl()) {

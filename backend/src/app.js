@@ -174,6 +174,9 @@ const storage = multer.diskStorage({
  */
 const upload = multer({
   storage,
+  // Par défaut, Multer lit le nom de fichier multipart en latin1 : un nom
+  // UTF-8 comme "Für Elise.mp3" serait alors stocké en "FÃ¼r Elise.mp3".
+  defParamCharset: "utf8",
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (_request, file, callback) => {
     // Seuls les types MIME audio demandés dans le sujet sont acceptés.

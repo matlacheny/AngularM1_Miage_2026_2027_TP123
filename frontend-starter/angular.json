@@ -18,6 +18,7 @@
                             }
                         ],
                         "styles": [
+                            "@angular/material/prebuilt-themes/azure-blue.css",
                             "src/styles.css"
                         ]
                     }
@@ -32,12 +33,16 @@
                     "defaultConfiguration": "development"
                 },
                 "test": {
-                    "builder": "@angular/build:unit-test"
+                    "builder": "@angular/build:unit-test",
+                    "options": {
+                        "buildTarget": "gpc:build",
+                        "tsConfig": "tsconfig.spec.json"
+                    }
                 }
             }
         }
     },
     "cli": {
-      "analytics": false
+        "analytics": false
     }
 }
