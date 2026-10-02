@@ -8,22 +8,36 @@ import { Track } from '../models/track.model';
 export class TrackService {
   private readonly http = inject(HttpClient);
 
-  list(page = 1, limit = 5) {
-    return this.http.get<Page<Track>>('/api/tracks', {
-      params: { page, limit },
-    });
+  /** `title` is an optional server-side filter (substring, case-insensitive). */
+  list(page = 1, limit = 5, title?: string) {
+    const params: Record<string, string | number> = { page, limit };
+    if (title) params['title'] = title;
+
+    return this.http.get<Page<Track>>('/api/tracks', { params });
   }
 
+  /**
+   * `reportProgress`/`observe: 'events'` expose the upload's progress events
+   * (`HttpEventType.UploadProgress`) in addition to the final response, so
+   * the caller can render a progress bar instead of a single loading spinner.
+   */
   upload(file: File, title: string) {
     const body = new FormData();
     body.append('audio', file);
     body.append('title', title);
-    return this.http.post<Track>('/api/tracks', body);
+    return this.http.post<Track>('/api/tracks', body, {
+      reportProgress: true,
+      observe: 'events',
+    });
   }
 
   audio(id: string) {
     return this.http.get(`/api/tracks/${id}/audio`, {
       responseType: 'blob',
     });
+  }
+
+  delete(id: string) {
+    return this.http.delete<void>(`/api/tracks/${id}`);
   }
 }

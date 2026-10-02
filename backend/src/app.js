@@ -2,10 +2,12 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import jwt from "jsonwebtoken";
+import { Types } from "mongoose";
 import fs from "node:fs";
 import fsPromises from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
+import { parseFile } from "music-metadata";
 import { User } from "./models/User.js";
 import { Track } from "./models/Track.js";
 
@@ -39,6 +41,73 @@ const allowed = new Set([
   "audio/mp4",
   "audio/x-m4a",
 ]);
+
+/**
+ * Échappe les caractères spéciaux d'une regex pour utiliser une recherche
+ * texte libre (filtre par titre) sans risquer une injection dans la requête
+ * MongoDB ni une regex dégénérée fournie par l'utilisateur.
+ */
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * À défaut de tags ID3 exploitables, dérive un terme de recherche à partir
+ * du nom de fichier original (ex. "Artist - Title.mp3" -> "Artist Title").
+ */
+function deriveSearchTermFromFilename(originalName) {
+  const base = path.basename(originalName, path.extname(originalName));
+  return base.replace(/[_\-]+/g, " ").trim();
+}
+
+/**
+ * Recherche automatique de pochette (AVANCÉ, facultatif) : lit les tags ID3
+ * du fichier audio via `music-metadata` (artiste/titre), et à défaut utilise
+ * le nom de fichier ; interroge ensuite l'API publique iTunes Search (aucune
+ * clé requise) pour trouver une image d'illustration correspondante.
+ *
+ * Ne doit jamais faire échouer l'upload : toute erreur (parsing, réseau,
+ * aucun résultat) est capturée ici et se traduit simplement par `null`.
+ */
+async function findCoverUrl(filePath, originalName) {
+  try {
+    const metadata = await parseFile(filePath, { duration: false, skipCovers: true });
+    const { artist, title } = metadata.common;
+    const searchTerm = artist && title ? `${artist} ${title}` : deriveSearchTermFromFilename(originalName);
+
+    if (!searchTerm) {
+      console.log("[cover] Aucun terme de recherche exploitable, pochette ignorée");
+      return null;
+    }
+
+    console.log(`[cover] Recherche de pochette pour "${searchTerm}"`);
+    const url = `https://itunes.apple.com/search?media=music&limit=1&term=${encodeURIComponent(searchTerm)}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.warn(`[cover] Réponse iTunes Search inattendue : ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const artwork = data.results?.[0]?.artworkUrl100;
+
+    if (!artwork) {
+      console.log(`[cover] Aucune pochette trouvée pour "${searchTerm}"`);
+      return null;
+    }
+
+    // iTunes ne renvoie qu'une vignette 100x100 par défaut ; remplacer ce
+    // segment de l'URL est la façon documentée d'obtenir une résolution plus
+    // grande depuis le même CDN public, sans appel supplémentaire.
+    const highRes = artwork.replace("100x100bb", "600x600bb");
+    console.log(`[cover] Pochette trouvée pour "${searchTerm}"`);
+    return highRes;
+  } catch (error) {
+    console.error("[cover] Recherche de pochette impossible", error);
+    return null;
+  }
+}
 
 /**
  * Crée un jeton JWT contenant uniquement l'identité nécessaire à l'API.
@@ -267,53 +336,61 @@ export function createApp() {
     }
   });
 
-  /** Retourne une page des pistes appartenant exclusivement à l'utilisateur. */
+  /**
+   * Retourne une page des pistes appartenant exclusivement à l'utilisateur.
+   * Le paramètre optionnel `title` filtre par sous-chaîne du titre,
+   * insensible à la casse (amélioration facultative du TP2).
+   */
   app.get("/api/tracks", auth, async (req, res, next) => {
     try {
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 5));
-      const filter = { ownerId: req.auth.sub };
+      const titleQuery = typeof req.query.title === "string" ? req.query.title.trim() : "";
+      // Contrairement à Track.find(), une agrégation ($match) ne caste jamais
+      // automatiquement une chaîne en ObjectId : il faut le faire explicitement,
+      // sinon le filtre ne correspond à aucun document (ownerId est stocké en
+      // ObjectId dans MongoDB, req.auth.sub est une chaîne issue du JWT).
+      const filter = { ownerId: new Types.ObjectId(req.auth.sub) };
 
-      console.log(`[tracks] Lecture page=${page}, limit=${limit}, user=${req.auth.sub}`);
+      if (titleQuery) {
+        filter.title = { $regex: escapeRegExp(titleQuery), $options: "i" };
+      }
 
-      // La lecture des pistes et le comptage total sont parallélisés pour réduire la latence.
-      // on utilise Promise.all pour exécuter les deux opérations en parallèle. 
-      // Track.find() récupère les pistes de l'utilisateur avec pagination, 
-      // tandis que Track.countDocuments() compte le nombre total de pistes pour cet utilisateur.
-      // Promise.all attend que les deux opérations soient terminées avant de continuer et les résultats
-        // sont stockés dans les variables items et total.
-      const [items, total] = await Promise.all([
-        Track.find(filter)
-          .sort({ createdAt: -1 })
-          .skip((page - 1) * limit)
-          .limit(limit)
-          .select("-storedName")
-          .lean(),
-        Track.countDocuments(filter),
+      console.log(
+        `[tracks] Lecture page=${page}, limit=${limit}, title=${titleQuery || "(aucun)"}, user=${req.auth.sub}`,
+      );
+
+      // AVANCÉ (facultatif, TP2) : la pagination est déléguée au plugin
+      // mongoose-aggregate-paginate-v2 plutôt qu'à un couple .skip()/.limit()
+      // + .countDocuments() écrit à la main (l'ancienne implémentation).
+      // Track.aggregate(...) construit le pipeline (filtre + tri + mise en
+      // forme des champs publics) ; Track.aggregatePaginate(...) l'exécute et
+      // y ajoute lui-même les métadonnées de pagination (total, nombre de
+      // pages, etc.), calculées côté MongoDB dans la même requête agrégée.
+      const aggregateQuery = Track.aggregate([
+        { $match: filter },
+        { $sort: { createdAt: -1 } },
+        {
+          $addFields: {
+            id: { $toString: "$_id" },
+            ownerId: { $toString: "$ownerId" },
+          },
+        },
+        // storedName ne doit jamais quitter le serveur (comme avec
+        // .select("-storedName") dans l'ancienne implémentation) ; _id et
+        // __v sont retirés car remplacés par le champ `id` ci-dessus.
+        { $project: { _id: 0, __v: 0, storedName: 0 } },
       ]);
 
-      // items.map(track) crée un nouveau tableau publicItems en transformant chaque piste pour inclure 
-      // uniquement les champs nécessaires à l'API.
-      // L'identifiant MongoDB (_id) est converti en chaîne de caractères (id) pour être plus lisible 
-      // côté frontend.
-      // Le champ _id (généré par MongoDB) est supprimé pour éviter de l'exposer dans la réponse JSON.
-      const publicItems = items.map((track) => ({
-        ...track,
-        id: String(track._id),
-        _id: undefined,
-      }));
+      const result = await Track.aggregatePaginate(aggregateQuery, { page, limit });
 
-      console.log(`[tracks] ${publicItems.length} piste(s) envoyée(s) sur ${total}`);
+      console.log(`[tracks] ${result.docs.length} piste(s) envoyée(s) sur ${result.totalDocs}`);
 
-      // envoi de la réponse JSON avec les pistes publiques, la page actuelle, la limite par page, 
-      // le nombre total de pistes et le nombre total de pages.
-      res.json({
-        items: publicItems,
-        page,
-        limit,
-        total,
-        pages: Math.max(1, Math.ceil(total / limit)),
-      });
+      // Le plugin renvoie directement un objet complet (docs, totalDocs,
+      // totalPages, hasNextPage, hasPrevPage, ...) : contrairement à l'ancien
+      // format ({items, page, limit, total, pages}), il n'y a plus besoin de
+      // construire la réponse à la main. Voir API_CONTRACT.md pour le détail.
+      res.json(result);
     } catch (error) {
       console.error("[tracks] Erreur de pagination", error);
       next(error);
@@ -352,6 +429,19 @@ export function createApp() {
         });
 
         console.log(`[tracks] Upload enregistré : ${track.id}`);
+
+        // La recherche de pochette se fait après coup, une fois le fichier
+        // déjà écrit sur disque et la piste déjà créée : un échec ici ne doit
+        // jamais transformer un upload par ailleurs réussi en erreur 500.
+        const coverUrl = await findCoverUrl(
+          path.join(UPLOADS, req.file.filename),
+          req.file.originalname,
+        );
+        if (coverUrl) {
+          track.coverUrl = coverUrl;
+          await track.save();
+        }
+
         res.status(201).json(track.toPublic());
       } catch (error) {
         console.error("[tracks] Erreur après l'enregistrement du fichier", error);
