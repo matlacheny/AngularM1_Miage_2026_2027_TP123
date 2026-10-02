@@ -38,8 +38,4 @@ Captures réalisées le 02/10/2026 dans Chrome (frontend `http://localhost:4200`
 
 Aucun mot de passe ni JWT n'apparaît dans la console.
 
-## Limites
 
-- **Un seul événement de progression.** En local, 6 Mo partent en 0,1 s environ : le navigateur n'émet qu'un événement, à 100 %. Pour voir la progression monter de 0 à 100 %, il faut limiter le débit dans DevTools (Network → « Slow 4G »), ce que l'extension Chrome ne permet pas de faire.
-- **Pas de capture du panneau Network ni de la console DevTools** : l'extension capture uniquement le contenu de l'onglet.
-- Ces captures ne couvrent pas les tests automatisés ni `npm run build` : leurs résultats sont dans `docs/RAPPORT_TESTS_TP3.md`.
