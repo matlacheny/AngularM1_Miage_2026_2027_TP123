@@ -8,7 +8,7 @@ import { Media } from '../../shared/models/media.model';
     <div class="viewer">
       <div class="row">
         <b>{{ media().title }}</b>
-        <button type="button" (click)="closed.emit()" aria-label="Fermer la lecture">✕</button>
+        <button type="button" class="ghost" (click)="closed.emit()" aria-label="Fermer la lecture">✕</button>
       </div>
       @switch (media().kind) {
         @case ('image') {
@@ -24,7 +24,7 @@ import { Media } from '../../shared/models/media.model';
     </div>
   `,
   styles: `
-    .viewer { display: grid; gap: 0.5rem; margin-bottom: 1rem; padding: 0.8rem; border-radius: 12px; background: #17312a; color: white; }
+    .viewer { display: grid; gap: 0.5rem; margin-bottom: 1rem; padding: 0.8rem; border-radius: 12px; background: #000; border: 1px solid var(--border); color: var(--text); }
     img, video { width: 100%; max-height: 60vh; object-fit: contain; border-radius: 8px; background: black; }
     audio { width: 100%; }
   `,

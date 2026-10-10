@@ -1,0 +1,40 @@
+:host { display: block; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 660px) 350px; justify-content: center; gap: 2.2rem; align-items: start; }
+
+.feed { display: grid; gap: 1.2rem; }
+.feed-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+.feed-header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; }
+.hangar-link { color: var(--muted); font-size: 0.9rem; text-decoration: none; }
+.hangar-link:hover { color: var(--text); }
+.empty { text-align: center; }
+.center { text-align: center; }
+.more { justify-self: center; }
+
+/* ---- Colonne de droite ------------------------------------------------- */
+
+.aside { position: sticky; top: 2rem; display: grid; gap: 1.2rem; }
+.side-card { padding: 1.1rem 1.2rem; }
+.side-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+.side-head h2 { margin: 0; font-size: 1.05rem; }
+.side-head a { color: var(--accent); font-size: 0.9rem; text-decoration: none; }
+.side-head a:hover { text-decoration: underline; }
+
+.side-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.45rem 0; color: var(--text); text-decoration: none; border-radius: 10px; }
+.side-item:hover b { text-decoration: underline; }
+.side-text { display: grid; flex: 1; gap: 0.2rem; min-width: 0; }
+.side-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-text small, .side-meta small { color: var(--muted); }
+.side-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.side-meta .pill { padding: 0 0.5rem; font-size: 0.75rem; }
+
+.thumb { position: relative; flex-shrink: 0; width: 78px; height: 56px; overflow: hidden; border-radius: 8px; background: var(--surface-2); }
+.thumb-silhouette { position: absolute; inset: 16% 14%; }
+.ring { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px rgba(232, 166, 42, 0.6); }
+.ago { color: var(--muted); }
+.ago.fresh { color: var(--accent); }
+
+@media (max-width: 1150px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .aside { position: static; }
+}

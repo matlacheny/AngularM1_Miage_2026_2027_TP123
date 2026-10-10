@@ -1,73 +1,172 @@
-<section>
-  <p><a routerLink="/vehicles">← Toutes les fiches</a></p>
+<a class="back-link" routerLink="/vehicles"><app-icon name="arrow-left" /> Toutes les fiches</a>
 
-  @if (notFound()) {
-    <p class="error" role="alert">Cette fiche n'existe pas.</p>
-  } @else if (vehicle(); as v) {
-    <article class="card fiche">
-      @if (v.imageUrl) {
-        <img [src]="v.imageUrl" [alt]="v.name" />
-      }
-      <div class="fiche-body">
-        <span class="badge">{{ categoryLabels[v.category] }}</span>
+@if (notFound()) {
+  <p class="error" role="alert">Cette fiche n'existe pas.</p>
+} @else {
+  <!-- Bandeau : drapeau en fondu, photo, catégorie et nom -->
+  <header class="hero">
+    <!-- Drapeau(x) à leurs vraies proportions, à gauche, fondus vers la droite, sous la photo. -->
+    <div class="hero-flag" [style.aspect-ratio]="flagRatio()">
+      <app-flag-backdrop [origins]="vehicle()?.origins ?? []" fade="right" />
+    </div>
+    @if (vehicle()?.imageUrl; as imageUrl) {
+      <img class="hero-photo" [src]="imageUrl" [alt]="vehicle()?.name ?? ''" />
+    } @else if (vehicle(); as v) {
+      <app-vehicle-silhouette class="hero-silhouette" [category]="v.category" [label]="v.name" />
+    }
+    <div class="hero-shade"></div>
+    <div class="hero-text">
+      @if (vehicle(); as v) {
+        <p class="hero-group">{{ categoryGroups[v.category] }}</p>
         <h1>{{ v.name }}</h1>
-        @if (v.countries.length) {
-          <p class="countries">Origine : {{ v.countries.join(', ') }}</p>
-        }
-        <p>{{ v.summary }}</p>
-        <small>
-          Source : <a [href]="v.wikipediaUrl" target="_blank" rel="noopener">Wikipédia</a>
-          (texte et image sous licence CC BY-SA).
-        </small>
-      </div>
-    </article>
-  } @else {
-    <p>Chargement…</p>
-  }
-
-  @if (!notFound()) {
-    <article class="card">
-      <h2>Médias</h2>
-      <div class="chips" role="group" aria-label="Filtrer par type">
-        <button type="button" [class.active]="kind() === null" (click)="filter(null)">Tous</button>
-        @for (k of kinds; track k) {
-          <button type="button" [class.active]="kind() === k" (click)="filter(k)">{{ kindLabels[k] }}s</button>
-        }
-      </div>
-
-      @if (opened(); as o) {
-        <app-media-viewer [media]="o.media" [url]="o.url" (closed)="opened.set(null)" />
-      }
-      @if (loadingMedia()) {
-        <p>Chargement…</p>
-      }
-      @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
-      }
-
-      <div class="media-grid">
-        @for (m of media(); track m.id) {
-          <article class="media-card" [class.playing]="opened()?.media?.id === m.id">
-            <span class="badge">{{ kindLabels[m.kind] }}</span>
-            <h3>{{ m.title }}</h3>
-            <div class="media-card-actions">
-              <button type="button" (click)="open(m)" [attr.aria-label]="'Ouvrir ' + m.title">
-                {{ m.kind === 'image' ? 'Voir' : '▶' }}
-              </button>
-            </div>
-          </article>
-        } @empty {
-          @if (!loadingMedia()) {
-            <p>Aucun média visible pour ce véhicule. Ajoutez-en depuis <a routerLink="/hangar">Mon hangar</a>.</p>
+        <div class="hero-pills">
+          <span class="pill pill-accent">{{ categoryLabels[v.category] }}</span>
+          @for (origin of v.origins.length ? v.origins : []; track origin.name) {
+            <span class="pill pill-muted">{{ origin.name }}</span>
+          } @empty {
+            @for (country of v.countries; track country) {
+              <span class="pill pill-muted">{{ country }}</span>
+            }
           }
+          <button
+            type="button"
+            class="favorite"
+            [class.on]="isFavorite()"
+            [attr.aria-pressed]="isFavorite()"
+            [disabled]="favoriteBusy()"
+            (click)="toggleFavorite()"
+          >
+            <app-icon [name]="isFavorite() ? 'star-filled' : 'star'" />
+            {{ isFavorite() ? 'Véhicule préféré' : 'Ajouter aux préférés' }}
+          </button>
+        </div>
+        @if (favoriteError()) {
+          <p class="error favorite-error" role="alert">{{ favoriteError() }}</p>
+        }
+      } @else {
+        <h1>Chargement…</h1>
+      }
+    </div>
+  </header>
+
+  <div class="columns">
+    <!-- Résumé -->
+    <article class="card resume">
+      <p class="eyebrow">Résumé</p>
+      @if (vehicle(); as v) {
+        <p class="summary">{{ v.summary }}</p>
+        <dl class="facts">
+          <div><dt>Origine</dt><dd>{{ v.countries.join(', ') || '—' }}</dd></div>
+          <div><dt>Catégorie</dt><dd>{{ categoryLabels[v.category] }}</dd></div>
+          <div><dt>Publications</dt><dd>{{ totalPosts() }}</dd></div>
+        </dl>
+        <a class="source" [href]="v.wikipediaUrl" target="_blank" rel="noopener">
+          Source : Wikipédia (CC BY-SA) <app-icon name="external" />
+        </a>
+      }
+    </article>
+
+    <!-- Sons -->
+    <article class="card sounds" aria-labelledby="sons-title">
+      <p class="eyebrow" id="sons-title">Sons</p>
+      @if (currentSound(); as s) {
+        <h2 class="now-playing">{{ s.title }}</h2>
+        @if (s.url) {
+          <app-audio-player [src]="s.url" [seed]="s.id" />
+        }
+      }
+      @if (sounds().length) {
+        <ul class="sound-list">
+          @for (sound of sounds(); track sound.id) {
+            <li>
+              <button
+                type="button"
+                class="ghost"
+                [class.active]="currentSoundId() === sound.id"
+                [attr.aria-pressed]="currentSoundId() === sound.id"
+                (click)="selectSound(sound)"
+              >
+                <app-icon name="mic" /> {{ sound.title }}
+              </button>
+            </li>
+          }
+        </ul>
+      } @else if (!soundError()) {
+        <p class="hint">Aucun son pour ce véhicule. <a routerLink="/hangar" [queryParams]="{ vehicle: id() }">Ajouter un enregistrement</a></p>
+      }
+      @if (soundError()) {
+        <p class="error" role="alert">{{ soundError() }}</p>
+      }
+    </article>
+  </div>
+
+  <!-- Publications, séparées de la fiche -->
+  <section class="posts" aria-labelledby="posts-title">
+    <div class="row">
+      <h2 id="posts-title">Publications</h2>
+      <div class="chips" role="group" aria-label="Filtrer les publications">
+        <button type="button" [class.active]="postKind() === null" (click)="filter(null)">Tout</button>
+        @for (k of kinds; track k) {
+          <button type="button" [class.active]="postKind() === k" (click)="filter(k)">{{ kindLabels[k] }}s</button>
         }
       </div>
+    </div>
 
+    @if (opened(); as o) {
+      @if (o.url) {
+        <app-media-viewer [media]="o" [url]="o.url" (closed)="opened.set(null)" />
+      }
+    }
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    <div class="post-grid">
+      @for (m of posts(); track m.id) {
+        <article class="post" [class.playing]="opened()?.id === m.id">
+          <div class="thumb" [class]="'thumb thumb-' + m.kind">
+            @switch (m.kind) {
+              @case ('image') {
+                <img [src]="m.url" [alt]="m.title" loading="lazy" />
+              }
+              @case ('video') {
+                <video [src]="m.url + '#t=0.5'" preload="metadata" muted playsinline aria-hidden="true"></video>
+                <span class="play-overlay"><app-icon name="play" /></span>
+              }
+              @default {
+                <span class="audio-thumb"><app-icon name="mic" /></span>
+              }
+            }
+          </div>
+          <span class="pill pill-accent badge">{{ kindLabels[m.kind] }}</span>
+          <h3>{{ m.title }}</h3>
+          @if (m.owner; as owner) {
+            <p class="author hint">par {{ owner.name }}</p>
+          }
+          <button type="button" class="block" (click)="open(m)" [attr.aria-label]="'Ouvrir ' + m.title">
+            @if (m.kind === 'image') {
+              Voir
+            } @else {
+              <app-icon name="play" /> Lire
+            }
+          </button>
+        </article>
+      } @empty {
+        @if (!loadingPosts()) {
+          <p class="hint">
+            Aucune publication pour ce véhicule.
+            <a routerLink="/hangar" [queryParams]="{ vehicle: id() }">Publier un son, une photo ou une vidéo</a>
+          </p>
+        }
+      }
+    </div>
+
+    @if (pages() > 1) {
       <div class="pager">
-        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
+        <button type="button" class="secondary" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
         <span>Page {{ page() }} / {{ pages() }}</span>
-        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
+        <button type="button" class="secondary" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
       </div>
-    </article>
-  }
-</section>
+    }
+  </section>
+}

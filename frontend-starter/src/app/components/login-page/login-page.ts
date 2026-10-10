@@ -29,7 +29,7 @@ export class LoginPageComponent {
     this.auth.login(values.email, values.password).subscribe({
       next: () => {
         console.debug('[LoginPage] Connexion réussie');
-        void this.router.navigateByUrl('/hangar');
+        void this.router.navigateByUrl('/feed');
       },
       error: (error: { error?: { message?: string } }) => {
         console.error('[LoginPage] Échec de connexion', error);

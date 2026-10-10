@@ -17,6 +17,11 @@ const schema = new mongoose.Schema(
     },
     // select:false empêche de renvoyer le hash par défaut dans les requêtes.
     passwordHash: { type: String, required: true, select: false },
+    // Profil public (maquette « Profil »).
+    bio: { type: String, trim: true, maxlength: 300, default: "" },
+    location: { type: String, trim: true, maxlength: 80, default: "" },
+    // Véhicules préférés, dans l'ordre d'ajout (6 au maximum, vérifié par la route).
+    favoriteVehicleIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" }],
   },
   { timestamps: true },
 );
@@ -54,6 +59,9 @@ schema.methods.toPublic = function () {
     id: this.id,
     name: this.name,
     email: this.email,
+    bio: this.bio ?? "",
+    location: this.location ?? "",
+    favoriteVehicleIds: (this.favoriteVehicleIds ?? []).map(String),
     createdAt: this.createdAt,
   };
 };

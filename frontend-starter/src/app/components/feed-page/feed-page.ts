@@ -1,0 +1,113 @@
+import { Component, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
+import { AvatarComponent } from '../../shared/components/avatar/avatar';
+import { FlagBackdropComponent } from '../../shared/components/flag-backdrop/flag-backdrop';
+import { VehicleSilhouetteComponent } from '../../shared/components/vehicle-silhouette/vehicle-silhouette';
+import { KIND_LABELS } from '../../shared/models/media.model';
+import { Post } from '../../shared/models/post.model';
+import { CATEGORY_LABELS, Vehicle } from '../../shared/models/vehicle.model';
+import { PostService } from '../../shared/services/post.service';
+import { VehicleService } from '../../shared/services/vehicle.service';
+import { shortRelativeTime } from '../../shared/utils/format';
+import { PostCardComponent } from '../post-card/post-card';
+import { PostComposerComponent } from '../post-composer/post-composer';
+
+export const FEED_PAGE_SIZE = 10;
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Accueil (maquette « Fil d'actualité ») : zone de publication, fil des
+ * posts visibles, et colonne « Véhicules recommandés » / « Posts récents ».
+ */
+@Component({
+  imports: [
+    RouterLink,
+    AvatarComponent,
+    FlagBackdropComponent,
+    VehicleSilhouetteComponent,
+    PostCardComponent,
+    PostComposerComponent,
+  ],
+  templateUrl: './feed-page.html',
+  styleUrl: './feed-page.css',
+})
+export class FeedPageComponent {
+  private readonly postService = inject(PostService);
+  private readonly vehicleService = inject(VehicleService);
+
+  readonly kindLabels = KIND_LABELS;
+  readonly categoryLabels = CATEGORY_LABELS;
+
+  readonly posts = signal<Post[]>([]);
+  readonly page = signal(1);
+  readonly hasMore = signal(false);
+  readonly loading = signal(false);
+  readonly error = signal('');
+
+  readonly recommended = signal<Vehicle[]>([]);
+  readonly recent = signal<Post[]>([]);
+
+  constructor() {
+    this.loadPage(1);
+    this.vehicleService.search('', undefined, 1, 4, 'popular').subscribe({
+      next: (page) => this.recommended.set(page.docs),
+      error: (error: HttpErrorResponse) => console.error('[FeedPage] Recommandations indisponibles', error.status),
+    });
+    this.loadRecent();
+  }
+
+  /** Page 1 : remplace le fil ; pages suivantes : ajoute à la suite (« plus anciennes »). */
+  loadPage(page: number): void {
+    this.loading.set(true);
+    this.error.set('');
+    this.postService.feed(page, FEED_PAGE_SIZE).subscribe({
+      next: (response) => {
+        this.posts.update((list) => (page === 1 ? response.docs : [...list, ...response.docs]));
+        this.page.set(page);
+        this.hasMore.set(response.page < response.totalPages);
+        this.loading.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        console.error('[FeedPage] Fil indisponible', error.status);
+        this.error.set(error.error?.message ?? 'Impossible de charger le fil.');
+        this.loading.set(false);
+      },
+    });
+  }
+
+  private loadRecent(): void {
+    this.postService.feed(1, 4, true).subscribe({
+      next: (page) => this.recent.set(page.docs),
+      error: (error: HttpErrorResponse) => console.error('[FeedPage] Posts récents indisponibles', error.status),
+    });
+  }
+
+  more(): void {
+    if (!this.loading() && this.hasMore()) this.loadPage(this.page() + 1);
+  }
+
+  onPublished(post: Post): void {
+    this.posts.update((list) => [post, ...list]);
+  }
+
+  onDeleted(id: string): void {
+    this.posts.update((list) => list.filter((p) => p.id !== id));
+    this.recent.update((list) => list.filter((p) => p.id !== id));
+  }
+
+  /** « Photo · Dassault Rafale », « Son », « Texte ». */
+  summary(post: Post): string {
+    const kind = post.media ? KIND_LABELS[post.media.kind] : 'Texte';
+    return post.vehicle ? `${kind} · ${post.vehicle.name}` : kind;
+  }
+
+  ago(post: Post): string {
+    return shortRelativeTime(post.createdAt);
+  }
+
+  /** Moins de 24 h : l'heure est mise en avant en ambre, comme sur la maquette. */
+  isFresh(post: Post): boolean {
+    return Date.now() - new Date(post.createdAt).getTime() < DAY;
+  }
+}

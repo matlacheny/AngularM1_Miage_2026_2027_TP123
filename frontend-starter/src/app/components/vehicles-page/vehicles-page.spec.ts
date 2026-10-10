@@ -5,19 +5,21 @@ import { Router, provideRouter } from '@angular/router';
 import { Vehicle } from '../../shared/models/vehicle.model';
 import { VehiclesPageComponent } from './vehicles-page';
 
-const vehicle = (id: string, name: string): Vehicle => ({
+const vehicle = (id: string, name: string, flagUrl: string | null = null): Vehicle => ({
   id,
   wikidataId: 'Q1',
   name,
   category: 'aircraft',
   countries: ['France'],
+  origins: [{ name: 'France', code: 'fr', flagUrl }],
+  mediaCount: 48,
   summary: '',
   imageUrl: null,
   wikipediaUrl: 'https://fr.wikipedia.org/wiki/X',
   createdAt: '2026-10-08T10:00:00.000Z',
 });
 
-const page = (docs: Vehicle[]) => ({ docs, totalDocs: docs.length, limit: 12, page: 1, totalPages: 1 });
+const page = (docs: Vehicle[], totalPages = 1) => ({ docs, totalDocs: docs.length, limit: 8, page: 1, totalPages });
 
 describe('VehiclesPageComponent', () => {
   let fixture: ComponentFixture<VehiclesPageComponent>;
@@ -25,6 +27,11 @@ describe('VehiclesPageComponent', () => {
   let http: HttpTestingController;
 
   const expectList = (): TestRequest => http.expectOne((r) => r.method === 'GET' && r.url === '/api/vehicles');
+  const element = () => fixture.nativeElement as HTMLElement;
+  const render = async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+  };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -41,14 +48,42 @@ describe('VehiclesPageComponent', () => {
     vi.restoreAllMocks();
   });
 
-  it('affiche les fiches avec un lien vers chacune', async () => {
-    expectList().flush(page([vehicle('v1', 'Dassault Rafale')]));
-    fixture.detectChanges();
-    await fixture.whenStable();
+  it('charge le catalogue trié par popularité, 8 fiches par page', () => {
+    const req = expectList();
+    expect(req.request.params.get('sort')).toBe('popular');
+    expect(req.request.params.get('limit')).toBe('8');
+    req.flush(page([]));
+  });
 
-    const link = (fixture.nativeElement as HTMLElement).querySelector('a.vehicle-card');
-    expect(link?.textContent).toContain('Dassault Rafale');
-    expect(link?.getAttribute('href')).toBe('/vehicles/v1');
+  it('affiche chaque fiche avec drapeau, silhouette, rang, catégorie et nombre de médias', async () => {
+    expectList().flush(page([vehicle('v1', 'Dassault Rafale', 'https://commons.wikimedia.org/flag.png'), vehicle('v2', 'Mirage 2000')]));
+    await render();
+
+    const card = element().querySelector('a.vehicle-card')!;
+    expect(card.getAttribute('href')).toBe('/vehicles/v1');
+    expect(card.querySelector('h2')?.textContent).toContain('Dassault Rafale');
+    expect((card.querySelector('.flag') as HTMLElement).style.backgroundImage).toContain('commons.wikimedia.org/flag.png');
+    expect(card.querySelector('app-vehicle-silhouette')).not.toBeNull();
+    expect(card.querySelector('.rank')?.textContent).toContain('#1');
+    expect(card.querySelector('.rank')?.classList).toContain('top');
+    expect(card.textContent).toContain('48 médias');
+    expect(card.querySelector('.pill-accent')?.textContent).toContain('Avion');
+  });
+
+  it('le menu de tri change le tri et masque le rang hors popularité', async () => {
+    expectList().flush(page([vehicle('v1', 'Rafale')]));
+    component.sortOpen.set(true);
+    await render();
+    expect(element().querySelectorAll('.sort-menu li').length).toBe(3);
+
+    component.chooseSort('name');
+    const req = expectList();
+    expect(req.request.params.get('sort')).toBe('name');
+    req.flush(page([vehicle('v1', 'Rafale')]));
+    await render();
+
+    expect(component.sortOpen()).toBe(false);
+    expect(element().querySelector('.rank')).toBeNull();
   });
 
   it('le filtre par catégorie est transmis au serveur', () => {
@@ -57,28 +92,27 @@ describe('VehiclesPageComponent', () => {
     expect(expectList().request.params.get('category')).toBe('helicopter');
   });
 
-  it('crée une fiche puis ouvre sa page', () => {
+  it('recherche sans résultat : propose des fiches proches et la création', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fixture.componentRef.setInput('q', 'Mirage 4000');
     expectList().flush(page([]));
-    component.newName.setValue('Mirage 2000');
+    await render();
+    await new Promise((resolve) => setTimeout(resolve, 350)); // anti-rebond de la recherche
 
-    component.create();
-    const req = http.expectOne((r) => r.method === 'POST' && r.url === '/api/vehicles');
-    expect(req.request.body).toEqual({ name: 'Mirage 2000' });
-    req.flush(vehicle('v9', 'Dassault Mirage 2000'));
+    const search = expectList();
+    expect(search.request.params.get('q')).toBe('Mirage 4000');
+    search.flush(page([]));
+    // Suggestions : fiches contenant le premier mot.
+    const suggestions = expectList();
+    expect(suggestions.request.params.get('q')).toBe('Mirage');
+    suggestions.flush(page([vehicle('m2', 'Mirage 2000')]));
+    await render();
 
-    expect(navigate).toHaveBeenCalledWith(['/vehicles', 'v9']);
-  });
+    const card = element().querySelector('.state-card')!;
+    expect(card.querySelector('h2')?.textContent).toContain('Aucune fiche pour « Mirage 4000 »');
+    expect(card.querySelector('a.suggestion')?.textContent).toContain('Mirage 2000');
 
-  it('affiche le message si Wikipédia est indisponible (503)', () => {
-    expectList().flush(page([]));
-    component.newName.setValue('Rafale');
-    component.create();
-    http
-      .expectOne((r) => r.method === 'POST')
-      .flush({ message: 'Wikipédia est momentanément indisponible' }, { status: 503, statusText: 'Service Unavailable' });
-
-    expect(component.createError()).toContain('indisponible');
-    expect(component.creating()).toBe(false);
+    component.createFromSearch();
+    expect(navigate).toHaveBeenCalledWith(['/vehicles/new'], { queryParams: { name: 'Mirage 4000' } });
   });
 });

@@ -87,6 +87,20 @@ async function parseVehicleId(raw) {
   return { ok: true, value: raw };
 }
 
+/** URL de lecture signée d'un média pour un lecteur donné. */
+export function streamUrlFor(viewerId, mediaId) {
+  return `/api/media/${mediaId}/file?token=${encodeURIComponent(streamToken(viewerId, mediaId))}`;
+}
+
+/**
+ * Ajoute `url` (lecture signée) à chaque média d'une page déjà filtrée par
+ * les droits du lecteur : l'interface affiche vignettes et lecteurs sans
+ * une requête stream-url par carte.
+ */
+export function withStreamUrls(page, viewerId) {
+  return { ...page, docs: page.docs.map((doc) => ({ ...doc, url: streamUrlFor(viewerId, doc.id) })) };
+}
+
 /** Retourne le média s'il existe ET si le lecteur y a droit, sinon null. */
 async function findAccessible(id, viewerId) {
   if (!mongoose.isValidObjectId(id)) return null;
@@ -126,7 +140,7 @@ export function createMediaRouter() {
       const result = await Media.aggregatePaginate(aggregate, { page, limit });
 
       console.log(`[media] ${result.docs.length} média(s) envoyé(s) sur ${result.totalDocs}`);
-      res.json(result);
+      res.json(withStreamUrls(result, req.auth.sub));
     } catch (error) {
       console.error("[media] Erreur de pagination", error);
       next(error);
@@ -262,7 +276,7 @@ export function createMediaRouter() {
         console.warn(`[media] URL de lecture refusée : ${req.params.id}`);
         return res.status(404).json({ message: "Média inconnu" });
       }
-      const url = `/api/media/${media.id}/file?token=${encodeURIComponent(streamToken(req.auth.sub, media.id))}`;
+      const url = streamUrlFor(req.auth.sub, media.id);
       res.json({ url, expiresIn: STREAM_TOKEN_TTL_SECONDS });
     } catch (error) {
       console.error("[media] Erreur de création d'URL de lecture", error);

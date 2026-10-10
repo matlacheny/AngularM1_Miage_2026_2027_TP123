@@ -1,4 +1,5 @@
 :host { display: block; }
-.hint { color: #61756f; }
-select { padding: 0.4rem; border-radius: 8px; }
-.vehicle-link { font-size: 0.85rem; font-weight: 600; color: #1d755e; }
+.vehicle-link { font-size: 0.85rem; font-weight: 600; color: var(--accent); text-decoration: none; }
+.vehicle-link:hover { text-decoration: underline; }
+.page-header { margin-bottom: 1.6rem; }
+small.hint { display: block; margin: 0.2rem 0 1rem; }

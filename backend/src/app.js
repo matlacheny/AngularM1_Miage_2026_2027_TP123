@@ -5,6 +5,8 @@ import { User } from "./models/User.js";
 import { auth, token } from "./auth.js";
 import { createMediaRouter } from "./routes/media.js";
 import { createVehiclesRouter } from "./routes/vehicles.js";
+import { createPostsRouter } from "./routes/posts.js";
+import { createUsersRouter } from "./routes/users.js";
 
 /**
  * Masque le jeton de lecture (?token=...) avant d'écrire une URL dans les logs :
@@ -143,9 +145,18 @@ export function createApp() {
   /** Modifie uniquement le nom de l'utilisateur connecté. */
   app.put("/api/users/me", auth, async (req, res, next) => {
     try {
+      // Seuls les champs envoyés sont modifiés : nom, ville, biographie.
+      const update = {};
+      for (const field of ["name", "location", "bio"]) {
+        if (req.body?.[field] === undefined) continue;
+        if (typeof req.body[field] !== "string") {
+          return res.status(400).json({ message: `Champ ${field} invalide` });
+        }
+        update[field] = req.body[field];
+      }
       const user = await User.findByIdAndUpdate(
         req.auth.sub,
-        { $set: { name: req.body?.name } },
+        { $set: update },
         { new: true, runValidators: true },
       );
 
@@ -154,7 +165,7 @@ export function createApp() {
         return res.status(404).json({ message: "Utilisateur inconnu" });
       }
 
-      console.log(`[user] Nom mis à jour : ${user.id}`);
+      console.log(`[user] Profil mis à jour : ${user.id}`, Object.keys(update));
       res.json(user.toPublic());
     } catch (error) {
       console.error("[user] Erreur de mise à jour du profil", error);
@@ -166,6 +177,10 @@ export function createApp() {
   app.use("/api/media", createMediaRouter());
   // Fiches véhicules validées via Wikipédia/Wikidata. Voir routes/vehicles.js.
   app.use("/api/vehicles", createVehiclesRouter());
+  // Fil d'actualité : posts, J'aime et commentaires. Voir routes/posts.js.
+  app.use("/api/posts", createPostsRouter());
+  // Profils publics et véhicules préférés. /api/users/me reste défini plus haut.
+  app.use("/api/users", createUsersRouter());
 
   /** Gestionnaire central des erreurs connues de l'application. */
   app.use((error, _req, res, next) => {

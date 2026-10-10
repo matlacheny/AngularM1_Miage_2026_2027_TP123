@@ -31,8 +31,13 @@ export class AuthService {
   }
 
   update(name: string) {
+    return this.updateProfile({ name });
+  }
+
+  /** Modifie nom, ville et/ou biographie (seuls les champs fournis). */
+  updateProfile(changes: { name?: string; location?: string; bio?: string }) {
     return this.http
-      .put<User>('/api/users/me', { name })
+      .put<User>('/api/users/me', changes)
       .pipe(tap((user) => this.currentUser.set(user)));
   }
 

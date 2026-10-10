@@ -1,0 +1,115 @@
+@let p = state();
+<article class="post" [attr.aria-label]="'Publication de ' + (p.owner?.name ?? 'inconnu')">
+  <header class="post-header">
+    <app-avatar [name]="p.owner?.name" />
+    <div class="who">
+      @if (p.owner; as owner) {
+        <a class="author" [routerLink]="['/users', owner.id]">{{ owner.name }}</a>
+      } @else {
+        <b>Utilisateur supprimé</b>
+      }
+      <small>{{ when() }} · {{ visibilityLabels[p.visibility] }}</small>
+    </div>
+    @if (isMine()) {
+      <div class="menu">
+        <button
+          type="button"
+          class="ghost icon-button"
+          aria-label="Options de la publication"
+          [attr.aria-expanded]="menuOpen()"
+          (click)="menuOpen.set(!menuOpen())"
+        >
+          <app-icon name="more" />
+        </button>
+        @if (menuOpen()) {
+          <div class="menu-panel" role="menu">
+            <button type="button" class="ghost danger-text" role="menuitem" (click)="remove()">
+              <app-icon name="trash" /> Supprimer
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </header>
+
+  @if (p.text) {
+    <p class="text">{{ p.text }}</p>
+  }
+
+  @if (p.vehicle || p.media) {
+    <div class="tags">
+      @if (p.vehicle; as v) {
+        <a class="vehicle-chip" [routerLink]="['/vehicles', v.id]"><app-icon name="plane" /> {{ v.name }}</a>
+      }
+      @if (p.media; as m) {
+        <span class="pill pill-accent">{{ kindLabels[m.kind] }}</span>
+      }
+    </div>
+  }
+
+  @if (p.media; as m) {
+    <div class="media" [class]="'media media-' + m.kind">
+      @switch (m.kind) {
+        @case ('image') {
+          <img [src]="m.url" [alt]="m.title" loading="lazy" />
+        }
+        @case ('video') {
+          <video [src]="m.url" controls preload="metadata" [attr.aria-label]="m.title"></video>
+        }
+        @default {
+          <app-audio-player [src]="m.url" [seed]="m.id" />
+        }
+      }
+    </div>
+  }
+
+  <div class="counts">
+    <span>{{ likesLabel() }}</span>
+    <button type="button" class="link" (click)="toggleComments()">{{ commentsLabel() }}</button>
+  </div>
+
+  <div class="actions">
+    <button
+      type="button"
+      class="ghost"
+      [class.liked]="p.likedByMe"
+      [attr.aria-pressed]="p.likedByMe"
+      [disabled]="liking()"
+      (click)="toggleLike()"
+    >
+      <app-icon [name]="p.likedByMe ? 'heart-filled' : 'heart'" /> J’aime
+    </button>
+    <button type="button" class="ghost" [attr.aria-expanded]="commentsOpen()" (click)="toggleComments()">
+      <app-icon name="message" /> Commenter
+    </button>
+    <button type="button" class="ghost" (click)="share()"><app-icon name="share" /> Partager</button>
+  </div>
+  @if (status()) {
+    <p class="status" role="status">{{ status() }}</p>
+  }
+
+  @if (commentsOpen()) {
+    <section class="comments" aria-label="Commentaires">
+      @for (c of comments(); track c.id) {
+        <div class="comment">
+          <app-avatar class="small" [name]="c.owner?.name" />
+          <div class="bubble">
+            <b>{{ c.owner?.name ?? 'Utilisateur supprimé' }}</b> <small>{{ commentWhen(c) }}</small>
+            <p>{{ c.text }}</p>
+          </div>
+        </div>
+      } @empty {
+        <p class="hint">Aucun commentaire pour l'instant.</p>
+      }
+      @if (commentError()) {
+        <p class="error" role="alert">{{ commentError() }}</p>
+      }
+      <form class="comment-form" (submit)="$event.preventDefault(); sendComment()">
+        <input [formControl]="commentText" placeholder="Écrire un commentaire…" aria-label="Écrire un commentaire" maxlength="1000" />
+        <button type="submit" class="secondary" [disabled]="sending() || !commentText.value.trim()" aria-label="Envoyer le commentaire">
+          <app-icon name="send" />
+        </button>
+      </form>
+    </section>
+  }
+</article>

@@ -1,0 +1,159 @@
+<a class="back-link" routerLink="/vehicles"><app-icon name="arrow-left" /> Toutes les fiches</a>
+
+<article
+  class="card state-card"
+  [class.success-card]="state() === 'success'"
+  [class.refused-card]="state() === 'refused'"
+  aria-live="polite"
+>
+  @switch (state()) {
+    @case ('edit') {
+      <span class="state-icon"><app-icon name="book" /></span>
+      <p class="eyebrow">Nouvelle fiche</p>
+      <h1>Quel véhicule ajouter ?</h1>
+      <p class="lead">Saisissez le nom d'un avion, d'un hélicoptère, d'un char ou d'un blindé.</p>
+      <form (submit)="$event.preventDefault(); confirm()">
+        <label>
+          Nom du véhicule
+          <input [formControl]="nameControl" placeholder="Dassault Mirage 2000, T-34, VBCI…" autocomplete="off" />
+        </label>
+        <div class="actions">
+          <button type="submit" [disabled]="current().length < 2">Continuer <app-icon name="arrow-right" /></button>
+          <a class="button-link secondary" routerLink="/vehicles">Annuler</a>
+        </div>
+      </form>
+    }
+
+    @case ('confirm') {
+      <span class="state-icon"><app-icon name="book" /></span>
+      <p class="eyebrow">Nouvelle fiche</p>
+      <h1>Créer la fiche « {{ current() }} » ?</h1>
+      <p class="lead">
+        Afterburner va rechercher ce véhicule sur Wikipédia et Wikidata pour remplir la fiche. Elle ne sera créée que
+        si les informations suivantes sont trouvées :
+      </p>
+      <ul class="inset steps">
+        <li>
+          <span class="step-icon info"><app-icon name="info" /></span>
+          <span><b>Un article Wikipédia correspondant</b><small>Recherché à partir du nom saisi</small></span>
+        </li>
+        <li>
+          <span class="step-icon info"><app-icon name="info" /></span>
+          <span><b>Une catégorie reconnue</b><small>Avion, hélicoptère, char ou blindé</small></span>
+        </li>
+        <li>
+          <span class="step-icon info"><app-icon name="info" /></span>
+          <span><b>Un élément Wikidata</b><small>Pays d'origine, image et résumé</small></span>
+        </li>
+      </ul>
+      <p class="note"><app-icon name="info" /> Si Wikipédia ne fournit pas assez d'informations, la demande sera refusée.</p>
+      <div class="actions">
+        <button type="button" (click)="create()">Rechercher et créer la fiche</button>
+        <a class="button-link secondary" routerLink="/vehicles">Annuler</a>
+      </div>
+    }
+
+    @case ('loading') {
+      <span class="state-icon"><span class="spinner"></span></span>
+      <p class="eyebrow">Nouvelle fiche</p>
+      <h1>Recherche sur Wikipédia…</h1>
+      <p class="lead">Nous vérifions que « {{ current() }} » est bien un avion, un hélicoptère, un char ou un blindé.</p>
+      <div class="progress" role="progressbar" [attr.aria-valuenow]="progress()" aria-valuemin="0" aria-valuemax="100">
+        <span [style.width.%]="progress()"></span>
+      </div>
+      <p class="hint small">Étape {{ step() + 1 }} sur {{ steps.length }}</p>
+      <ul class="inset steps">
+        @for (s of steps; track s.title; let i = $index) {
+          <li [class]="stepState(i)">
+            <span class="step-icon" [class]="'step-icon ' + stepState(i)">
+              @switch (stepState(i)) {
+                @case ('done') { <app-icon name="check" /> }
+                @case ('current') { <app-icon name="circle" /> }
+                @default { <app-icon name="dot" /> }
+              }
+            </span>
+            <span><b>{{ s.title }}</b><small>{{ s.detail }}</small></span>
+          </li>
+        }
+      </ul>
+      <div class="actions single">
+        <button type="button" class="secondary" (click)="cancel()">Annuler</button>
+      </div>
+    }
+
+    @case ('success') {
+      @if (vehicle(); as v) {
+        <span class="state-icon ok"><app-icon name="check" /></span>
+        <p class="eyebrow ok-text">{{ existing() ? 'Fiche existante' : 'Fiche créée' }}</p>
+        <h1>{{ existing() ? 'Cette fiche existe déjà' : 'La fiche est en ligne !' }}</h1>
+        <p class="lead">
+          @if (existing()) {
+            « {{ current() }} » correspond à une fiche déjà présente dans Afterburner.
+          } @else {
+            Elle a été remplie automatiquement à partir de Wikipédia et Wikidata. Vous pouvez maintenant y ajouter des
+            sons, photos et vidéos.
+          }
+        </p>
+        <div class="inset summary">
+          <div class="flag-thumb"><app-flag-backdrop [origins]="v.origins" /></div>
+          <div>
+            <b class="summary-name">{{ v.name }}</b>
+            <div class="meta">
+              <span class="pill pill-accent">{{ labels[v.category] }}</span>
+              <span class="hint">{{ v.countries.join(', ') }}</span>
+            </div>
+            @if (!existing()) {
+              <small class="hint">Aucun média pour l'instant</small>
+            }
+          </div>
+        </div>
+        <ul class="steps plain">
+          <li><span class="step-icon done"><app-icon name="check" /></span><b>Article Wikipédia trouvé</b></li>
+          <li>
+            <span class="step-icon done"><app-icon name="check" /></span>
+            <b>Catégorie reconnue : {{ labels[v.category].toLowerCase() }}</b>
+          </li>
+          <li><span class="step-icon done"><app-icon name="check" /></span><b>Données Wikidata récupérées</b></li>
+        </ul>
+        <div class="actions">
+          <a class="button-link primary" [routerLink]="['/vehicles', v.id]">Voir la fiche <app-icon name="arrow-right" /></a>
+          <a class="button-link secondary" routerLink="/hangar" [queryParams]="{ vehicle: v.id }">
+            Ajouter un média <app-icon name="plus" />
+          </a>
+        </div>
+      }
+    }
+
+    @case ('refused') {
+      <span class="state-icon ko"><app-icon name="x" /></span>
+      <p class="eyebrow ko-text">Création refusée</p>
+      <h1>Impossible de créer cette fiche</h1>
+      <p class="lead strong">{{ message() }}</p>
+      <ul class="inset steps">
+        <li><span class="step-icon done"><app-icon name="check" /></span><span><b>Recherche Wikipédia effectuée</b></span></li>
+        <li>
+          <span class="step-icon failed"><app-icon name="x" /></span>
+          <span><b>Aucun article correspondant</b><small>Aucun article décrivant un véhicule militaire n'a été trouvé</small></span>
+        </li>
+        <li><span class="step-icon failed"><app-icon name="x" /></span><span><b>Catégorie non reconnue</b></span></li>
+      </ul>
+      <p class="hint small">Vérifiez l'orthographe ou essayez le nom complet du véhicule (ex. « Dassault Mirage 2000 »).</p>
+      <div class="actions">
+        <button type="button" (click)="editName()">Modifier le nom</button>
+        <a class="button-link secondary" routerLink="/vehicles">Retour à la liste</a>
+      </div>
+    }
+
+    @case ('unavailable') {
+      <span class="state-icon"><app-icon name="alert" /></span>
+      <p class="eyebrow">Wikipédia indisponible</p>
+      <h1>La recherche n'a pas abouti</h1>
+      <p class="lead strong">{{ message() }}</p>
+      <p class="hint small">Aucune fiche n'a été créée. Vous pouvez réessayer dans un instant.</p>
+      <div class="actions">
+        <button type="button" (click)="create()">Réessayer</button>
+        <a class="button-link secondary" routerLink="/vehicles">Retour à la liste</a>
+      </div>
+    }
+  }
+</article>

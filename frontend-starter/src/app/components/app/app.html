@@ -1,26 +1,53 @@
-<header>
-  <div>
-    <b>Guitar Practice Cloud</b>
-    <small>Le cloud qui manque à votre ampli</small>
-  </div>
-  <nav aria-label="Navigation principale">
-    <a routerLink="/hangar">Mon hangar</a>
-    <a routerLink="/vehicles">Véhicules</a>
-    @if (auth.token()) {
-      <a routerLink="/profile">
-        Profil
-        @if (auth.currentUser(); as user) {
-          ({{ user.name }})
-        }
+@if (auth.token()) {
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" routerLink="/feed" aria-label="Afterburner, accueil">
+        <span class="brand-logo"><app-icon name="plane" /></span>
+        <span>
+          <b>Afterburner</b>
+          <small>Aviation &amp; blindés</small>
+        </span>
       </a>
-      <button type="button" (click)="logout()">Se déconnecter</button>
-    } @else {
-      <a routerLink="/login">Connexion</a>
-      <a routerLink="/register">Créer un compte</a>
-    }
-  </nav>
-</header>
 
-<main>
-  <router-outlet />
-</main>
+      <form class="sidebar-search" role="search" (submit)="$event.preventDefault(); searchVehicles()">
+        <app-icon name="search" />
+        <input [formControl]="search" type="search" placeholder="Rechercher un véhicule…" aria-label="Rechercher un véhicule" />
+      </form>
+
+      <nav aria-label="Navigation principale">
+        <p class="nav-title">Navigation</p>
+        <a routerLink="/feed" routerLinkActive="active"><app-icon name="home" /> Accueil</a>
+        <a routerLink="/vehicles" routerLinkActive="active"><app-icon name="plane" /> Véhicules</a>
+        <a routerLink="/profile" routerLinkActive="active"><app-icon name="user" /> Profil</a>
+      </nav>
+
+      <div class="user-card">
+        <a class="user-link" routerLink="/profile">
+          <span class="avatar">{{ initials() }}</span>
+          <span>
+            <b>{{ auth.currentUser()?.name ?? '…' }}</b>
+            <small>Voir mon profil</small>
+          </span>
+        </a>
+        <button type="button" class="ghost icon-button" (click)="logout()" aria-label="Se déconnecter">
+          <app-icon name="logout" />
+        </button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+} @else {
+  <main class="public">
+    <div class="brand public-brand">
+      <span class="brand-logo"><app-icon name="plane" /></span>
+      <span>
+        <b>Afterburner</b>
+        <small>Aviation &amp; blindés</small>
+      </span>
+    </div>
+    <router-outlet />
+  </main>
+}

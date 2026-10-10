@@ -1,0 +1,78 @@
+<div class="layout">
+  <section class="feed" aria-labelledby="feed-title">
+    <header class="feed-header">
+      <div>
+        <p class="eyebrow">Fil d'actualité</p>
+        <h1 id="feed-title">Les derniers médias de votre escadrille</h1>
+      </div>
+      <a class="hangar-link" routerLink="/hangar">Mon hangar</a>
+    </header>
+
+    <app-post-composer (published)="onPublished($event)" />
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    @for (post of posts(); track post.id) {
+      <app-post-card [post]="post" (deleted)="onDeleted($event)" />
+    } @empty {
+      @if (!loading()) {
+        <div class="card empty">
+          <b>Le fil est vide pour l'instant.</b>
+          <p class="hint">Publiez le premier son, la première photo ou la première vidéo avec la zone ci-dessus.</p>
+        </div>
+      }
+    }
+
+    @if (loading()) {
+      <p class="hint center">Chargement…</p>
+    } @else if (hasMore()) {
+      <button type="button" class="secondary more" (click)="more()">Voir les publications plus anciennes</button>
+    }
+  </section>
+
+  <aside class="aside">
+    <section class="card side-card" aria-labelledby="reco-title">
+      <div class="side-head">
+        <h2 id="reco-title">Véhicules recommandés</h2>
+        <a routerLink="/vehicles">Voir tout</a>
+      </div>
+      @for (v of recommended(); track v.id) {
+        <a class="side-item" [routerLink]="['/vehicles', v.id]">
+          <span class="thumb">
+            <app-flag-backdrop [origins]="v.origins" />
+            <app-vehicle-silhouette class="thumb-silhouette" [category]="v.category" />
+          </span>
+          <span class="side-text">
+            <b>{{ v.name }}</b>
+            <span class="side-meta">
+              <span class="pill pill-accent">{{ categoryLabels[v.category] }}</span>
+              <small>{{ v.countries.join(', ') }}</small>
+            </span>
+          </span>
+        </a>
+      } @empty {
+        <p class="hint">Aucune fiche pour l'instant.</p>
+      }
+    </section>
+
+    <section class="card side-card" aria-labelledby="recent-title">
+      <div class="side-head">
+        <h2 id="recent-title">Posts récents</h2>
+      </div>
+      @for (p of recent(); track p.id) {
+        <a class="side-item" [routerLink]="['/posts', p.id]">
+          <app-avatar class="ring" [name]="p.owner?.name" />
+          <span class="side-text">
+            <b>{{ p.owner?.name ?? 'Utilisateur supprimé' }}</b>
+            <small>{{ summary(p) }}</small>
+          </span>
+          <small class="ago" [class.fresh]="isFresh(p)">{{ ago(p) }}</small>
+        </a>
+      } @empty {
+        <p class="hint">Aucune publication d'autres membres pour l'instant.</p>
+      }
+    </section>
+  </aside>
+</div>

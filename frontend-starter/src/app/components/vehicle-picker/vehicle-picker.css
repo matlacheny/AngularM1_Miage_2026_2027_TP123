@@ -1,10 +1,8 @@
 :host { display: block; }
 .picker { display: grid; gap: 0.4rem; }
-.chosen { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.7rem; border-radius: 10px; background: #eef7f3; }
-.chosen small { margin-left: 0.4rem; color: #61756f; }
-.suggestions { list-style: none; margin: 0; padding: 0; border: 1px solid #e1ebe7; border-radius: 10px; }
-.suggestions li + li { border-top: 1px solid #e1ebe7; }
-.suggestions button { width: 100%; text-align: left; }
-.ghost { background: transparent; color: #17312a; }
-.secondary { background: #e1ebe7; color: #17312a; }
-small { color: #61756f; }
+.chosen { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.7rem; background: var(--surface-2); border: 1px solid var(--accent); border-radius: 10px; }
+.chosen small { margin-left: 0.4rem; }
+.suggestions { list-style: none; margin: 0; padding: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.suggestions li + li { border-top: 1px solid var(--border); }
+.suggestions button { width: 100%; text-align: left; border-radius: 0; font-weight: 500; }
+small { color: var(--muted); }

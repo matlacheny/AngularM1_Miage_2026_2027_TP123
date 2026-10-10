@@ -5,12 +5,22 @@ import { accessFilter } from "../access.js";
 import { Media, SIZE_LIMITS, publicMediaPipeline } from "../models/Media.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { CATEGORIES, WikiUnavailableError, normalizeName, wikipedia } from "../wikipedia.js";
-import { escapeRegExp, loadFriendIds } from "./media.js";
+import { escapeRegExp, loadFriendIds, withStreamUrls } from "./media.js";
 
 const pageParams = (query, defaultLimit) => ({
   page: Math.max(1, Number(query.page) || 1),
   limit: Math.min(20, Math.max(1, Number(query.limit) || defaultLimit)),
 });
+
+/**
+ * Tris du catalogue. « popular » = nombre de médias publics, en attendant
+ * les « J'aime » de l'étape posts. Le nom départage les égalités.
+ */
+const SORTS = {
+  popular: { mediaCount: -1, name: 1 },
+  name: { name: 1 },
+  recent: { createdAt: -1 },
+};
 
 /** Routes /api/vehicles : fiches véhicules et médias qui leur sont rattachés. */
 export function createVehiclesRouter() {
@@ -35,12 +45,30 @@ export function createVehiclesRouter() {
         filter.category = category;
       }
 
-      console.log(`[vehicles] Recherche q=${q || "(aucun)"}, category=${category || "(toutes)"}`);
+      const sort = typeof req.query.sort === "string" && req.query.sort ? req.query.sort : "popular";
+      if (!(sort in SORTS)) {
+        return res.status(400).json({ message: "Tri inconnu" });
+      }
+
+      console.log(`[vehicles] Recherche q=${q || "(aucun)"}, category=${category || "(toutes)"}, sort=${sort}`);
       const aggregate = Vehicle.aggregate([
         { $match: filter },
-        { $sort: { name: 1 } },
-        { $addFields: { id: { $toString: "$_id" } } },
-        { $project: { _id: 0, __v: 0, aliases: 0, createdBy: 0, updatedAt: 0 } },
+        // Nombre de médias publics de la fiche : sert au tri « popularité »
+        // et s'affiche sur les cartes du catalogue.
+        {
+          $lookup: {
+            from: Media.collection.name,
+            let: { vehicleId: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $eq: ["$vehicleId", "$$vehicleId"] }, visibility: "public" } },
+              { $count: "n" },
+            ],
+            as: "mediaStats",
+          },
+        },
+        { $addFields: { id: { $toString: "$_id" }, mediaCount: { $ifNull: [{ $first: "$mediaStats.n" }, 0] } } },
+        { $sort: SORTS[sort] },
+        { $project: { _id: 0, __v: 0, aliases: 0, createdBy: 0, updatedAt: 0, mediaStats: 0 } },
       ]);
       res.json(await Vehicle.aggregatePaginate(aggregate, { page, limit }));
     } catch (error) {
@@ -106,6 +134,7 @@ export function createVehiclesRouter() {
           name: resolved.name,
           category: resolved.category,
           countries: resolved.countries,
+          origins: resolved.origins ?? [],
           summary: resolved.summary,
           imageUrl: resolved.imageUrl,
           wikipediaUrl: resolved.wikipediaUrl,
@@ -150,8 +179,10 @@ export function createVehiclesRouter() {
         return res.status(404).json({ message: "Véhicule inconnu" });
       }
       const { page, limit } = pageParams(req.query, 12);
-      const kind = typeof req.query.kind === "string" ? req.query.kind : "";
-      if (kind && !(kind in SIZE_LIMITS)) {
+      // `kind` accepte une catégorie ("audio") ou une liste ("image,video") :
+      // la fiche affiche les sons d'un côté et les publications de l'autre.
+      const kinds = typeof req.query.kind === "string" && req.query.kind ? req.query.kind.split(",") : [];
+      if (kinds.some((k) => !(k in SIZE_LIMITS))) {
         return res.status(400).json({ message: "Catégorie inconnue" });
       }
 
@@ -159,13 +190,14 @@ export function createVehiclesRouter() {
       const friends = [...(await loadFriendIds(req.auth.sub))].map((id) => new Types.ObjectId(id));
       const match = {
         vehicleId: new Types.ObjectId(req.params.id),
-        ...(kind && { kind }),
+        ...(kinds.length === 1 && { kind: kinds[0] }),
+        ...(kinds.length > 1 && { kind: { $in: kinds } }),
         ...accessFilter(viewer, friends),
       };
 
       const result = await Media.aggregatePaginate(Media.aggregate(publicMediaPipeline(match)), { page, limit });
       console.log(`[vehicles] ${result.docs.length} média(s) pour la fiche ${req.params.id}`);
-      res.json(result);
+      res.json(withStreamUrls(result, req.auth.sub));
     } catch (error) {
       console.error("[vehicles] Erreur de lecture des médias", error);
       next(error);

@@ -1,7 +1,116 @@
 :host { display: block; }
-.hint { color: #61756f; }
-.vehicle-card { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.7rem; border: 1px solid #e1ebe7; border-radius: 12px; background: #fafcfb; color: inherit; text-decoration: none; }
-.vehicle-card:hover, .vehicle-card:focus-visible { border-color: #1d755e; }
-.vehicle-card img, .placeholder { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: #e1ebe7; }
-.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #9fb5ae; }
-.vehicle-card small { color: #61756f; }
+
+.toolbar { display: flex; gap: 1rem; margin: 1.8rem 0 1rem; }
+.search-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.search-field input { flex: 1; padding: 0.85rem 0; background: transparent; border: 0; outline: none; font-size: 1rem; }
+.search-field:focus-within { border-color: var(--accent); }
+
+.sort { position: relative; }
+.sort-button { height: 100%; color: var(--text); background: var(--surface); border: 1px solid var(--border); }
+.sort-button:hover:not(:disabled) { background: var(--surface-2); }
+.sort-button.open { border-color: var(--accent); }
+.sort-button app-icon:first-child { color: var(--accent); }
+.sort-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 100%;
+  margin: 0;
+  padding: 0.4rem;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.sort-menu button { width: 100%; justify-content: space-between; padding: 0.55rem 0.7rem; font-weight: 500; white-space: nowrap; }
+.sort-menu li[aria-selected='true'] button { background: var(--surface-2); font-weight: 600; }
+.sort-menu app-icon { color: var(--accent); }
+
+.add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.3rem;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.add-button:hover { background: var(--surface-2); }
+
+/* ---- Cartes du catalogue ---------------------------------------------- */
+
+.vehicle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1.4rem; margin-top: 1.4rem; }
+.vehicle-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: transform 0.15s, border-color 0.15s;
+}
+.vehicle-card:hover, .vehicle-card:focus-visible { transform: translateY(-2px); border-color: var(--accent); }
+
+.visual { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: var(--surface-2); }
+.silhouette { position: absolute; inset: 14% 12% 8%; }
+.rank {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(20, 21, 23, 0.85);
+  border-radius: 999px;
+}
+.rank.top { color: #17130a; background: var(--accent); }
+
+.body { display: grid; gap: 0.5rem; padding: 1rem 1.2rem 1.2rem; }
+.body h2 { margin: 0; font-size: 1.25rem; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.stat { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* ---- Carte d'état (aucune fiche) -------------------------------------- */
+
+.state-card { max-width: 600px; margin: 4rem auto; padding: 2.2rem; }
+.state-card h2 { margin: 0 0 0.6rem; font-size: 1.9rem; }
+.state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  margin-bottom: 1rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 50%;
+  --icon-size: 1.5rem;
+}
+.small { margin-bottom: 0; font-size: 0.9rem; }
+.suggestion { padding: 0.4rem 0.9rem; color: var(--text); text-decoration: none; background: var(--surface-2); border-radius: 999px; }
+.suggestion:hover { background: var(--surface-3); }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.4rem; }
+
+@media (max-width: 700px) {
+  .toolbar { flex-wrap: wrap; }
+  .search-field { flex-basis: 100%; }
+  .actions { grid-template-columns: 1fr; }
+}

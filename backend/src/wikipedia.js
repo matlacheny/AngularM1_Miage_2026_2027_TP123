@@ -101,17 +101,43 @@ export async function searchCandidates(query, fetchImpl = fetch) {
 export function buildClassificationQuery(qids) {
   const items = qids.filter((q) => /^Q\d+$/.test(q)).map((q) => `wd:${q}`).join(" ");
   const roots = VEHICLE_ROOTS.map((r) => `(wd:${r.qid} "${r.category}")`).join(" ");
-  return `SELECT ?item ?category ?countryLabel WHERE {
+  // Pays du véhicule, par ordre de préférence (tous les éléments ne
+  // renseignent pas P495 : le Mirage 2000 n'a que P17) :
+  //   1. pays d'origine (P495) ;  2. pays (P17) ;  3. pays du constructeur (P176 → P17).
+  // COALESCE garde, ligne par ligne, la première source renseignée.
+  // Puis : nom français, code ISO 3166-1 (P297, absent pour un État disparu
+  // comme l'URSS) et image du drapeau (P41).
+  return `SELECT ?item ?category ?country ?countryLabel ?code ?flag WHERE {
   VALUES ?item { ${items} }
   VALUES (?root ?category) { ${roots} }
   ?item wdt:P279+ ?root .
-  OPTIONAL { ?item wdt:P495 ?country . ?country rdfs:label ?countryLabel . FILTER(LANG(?countryLabel) = "fr") }
+  OPTIONAL { ?item wdt:P495 ?origin }
+  OPTIONAL { ?item wdt:P17 ?itemCountry }
+  OPTIONAL { ?item wdt:P176/wdt:P17 ?makerCountry }
+  BIND(COALESCE(?origin, ?itemCountry, ?makerCountry) AS ?country)
+  OPTIONAL {
+    ?country rdfs:label ?countryLabel . FILTER(LANG(?countryLabel) = "fr")
+    OPTIONAL { ?country wdt:P297 ?code }
+    OPTIONAL { ?country wdt:P41 ?flag }
+  }
 }`;
 }
 
 /**
+ * Wikidata renvoie le drapeau sous la forme
+ * http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20France.svg :
+ * on force HTTPS et on demande un rendu PNG de 640 px de large.
+ */
+export function flagUrlFrom(commonsUrl) {
+  if (!commonsUrl?.includes("commons.wikimedia.org/wiki/Special:FilePath/")) return null;
+  return `${commonsUrl.replace(/^http:/, "https:")}?width=640`;
+}
+
+/**
  * Étape 2 : pour chaque QID qui est un véhicule, sa catégorie la plus précise
- * et ses pays d'origine (P495). Les QID absents de la Map ne sont pas des véhicules.
+ * et ses pays d'origine (P495) avec leur drapeau. Les QID absents de la Map
+ * ne sont pas des véhicules.
+ * Valeur : { category, countries: Set<nom>, origins: [{ name, code, flagUrl }] }.
  */
 export async function classifyVehicles(qids, fetchImpl = fetch) {
   if (!qids.length) return new Map();
@@ -122,10 +148,25 @@ export async function classifyVehicles(qids, fetchImpl = fetch) {
   for (const row of data.results?.bindings ?? []) {
     const qid = row.item.value.split("/").pop();
     const category = row.category.value;
-    const entry = result.get(qid) ?? { category, countries: new Set() };
+    const entry = result.get(qid) ?? { category, countries: new Set(), byCountry: new Map() };
     if (CATEGORIES.indexOf(category) < CATEGORIES.indexOf(entry.category)) entry.category = category;
-    if (row.countryLabel?.value) entry.countries.add(row.countryLabel.value);
+
+    const name = row.countryLabel?.value;
+    if (name) {
+      entry.countries.add(name);
+      // Un pays peut avoir plusieurs drapeaux (historiques) : on garde le premier.
+      const key = row.country?.value ?? name;
+      const origin = entry.byCountry.get(key) ?? { name, code: null, flagUrl: null };
+      origin.code ??= row.code?.value?.toLowerCase() ?? null;
+      origin.flagUrl ??= flagUrlFrom(row.flag?.value);
+      entry.byCountry.set(key, origin);
+    }
     result.set(qid, entry);
+  }
+
+  for (const entry of result.values()) {
+    entry.origins = [...entry.byCountry.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
+    delete entry.byCountry;
   }
   return result;
 }
@@ -146,11 +187,11 @@ async function resolveVehicle(query, fetchImpl = fetch) {
     return null;
   }
 
-  const { category, countries } = classes.get(match.wikidataId);
+  const { category, countries, origins } = classes.get(match.wikidataId);
   console.log(`[wiki] "${query}" => ${match.title} (${match.wikidataId}, ${category})`);
-  return { ...match, name: match.title, category, countries: [...countries].sort() };
+  return { ...match, name: match.title, category, countries: [...countries].sort(), origins };
 }
 
 // Objet mutable : les tests remplacent wikipedia.resolveVehicle par une
 // doublure, sans jamais appeler les vraies API pendant `npm test`.
-export const wikipedia = { resolveVehicle };
+export const wikipedia = { resolveVehicle, classifyVehicles };

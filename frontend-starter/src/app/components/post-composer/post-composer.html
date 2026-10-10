@@ -1,0 +1,52 @@
+<section class="composer" aria-label="Nouvelle publication">
+  <div class="top">
+    <app-avatar [name]="auth.currentUser()?.name" [accent]="true" />
+    <textarea
+      [formControl]="text"
+      rows="1"
+      maxlength="2000"
+      placeholder="Partagez un son, une photo ou une vidéo…"
+      aria-label="Texte de la publication"
+      (focus)="focused.set(true)"
+    ></textarea>
+  </div>
+
+  @if (file(); as f) {
+    <div class="attachment">
+      <app-icon [name]="fileKind() === 'audio' ? 'mic' : fileKind() === 'video' ? 'video' : 'image'" />
+      <span class="file-name">{{ f.name }}</span>
+      <button type="button" class="ghost icon-button" (click)="clearFile()" aria-label="Retirer le fichier"><app-icon name="x" /></button>
+    </div>
+  }
+
+  @if (expanded()) {
+    <div class="options">
+      <app-vehicle-picker [(selected)]="vehicle" />
+      <label>
+        Visibilité
+        <select [formControl]="visibility">
+          @for (v of visibilities; track v) {
+            <option [value]="v">{{ visibilityLabels[v] }}</option>
+          }
+        </select>
+      </label>
+    </div>
+  }
+
+  @if (publishing() && file()) {
+    <progress [value]="progress()" max="100" aria-label="Envoi du fichier"></progress>
+  }
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+
+  <div class="bar">
+    <input #fileInput type="file" hidden (change)="choose($event)" />
+    <button type="button" class="ghost" (click)="pick('audio')"><app-icon name="mic" /> Son</button>
+    <button type="button" class="ghost" (click)="pick('image')"><app-icon name="image" /> Photo</button>
+    <button type="button" class="ghost" (click)="pick('video')"><app-icon name="video" /> Vidéo</button>
+    <button type="button" class="publish" [disabled]="!canPublish()" (click)="publish()">
+      {{ publishing() ? 'Publication…' : 'Publier' }}
+    </button>
+  </div>
+</section>

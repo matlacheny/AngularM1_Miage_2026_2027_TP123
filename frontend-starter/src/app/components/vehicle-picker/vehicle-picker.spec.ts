@@ -10,6 +10,7 @@ const vehicle = (id: string, name: string): Vehicle => ({
   name,
   category: 'tank',
   countries: ['France'],
+  origins: [{ name: 'France', code: 'fr', flagUrl: null }],
   summary: '',
   imageUrl: null,
   wikipediaUrl: 'https://fr.wikipedia.org/wiki/X',

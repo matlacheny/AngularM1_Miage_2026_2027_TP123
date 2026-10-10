@@ -321,6 +321,21 @@ test("GET /api/vehicles/:id/media : fiche + règle d'accès du lecteur", async (
   assert.deepEqual(match.$or[2], { visibility: "public" });
 });
 
+test("GET /api/vehicles/:id/media : kind accepte une liste, chaque valeur est validée", async (t) => {
+  let match;
+  stub(t, Media, "aggregatePaginate", async (aggregate, o) => {
+    match = aggregate.pipeline()[0].$match;
+    return { docs: [], totalDocs: 0, limit: o.limit, page: o.page, totalPages: 1 };
+  });
+
+  const ok = await fetch(`${base}/api/vehicles/${VEHICLE_ID}/media?kind=image,video`, { headers: bearer() });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(match.kind, { $in: ["image", "video"] });
+
+  const bad = await fetch(`${base}/api/vehicles/${VEHICLE_ID}/media?kind=image,pdf`, { headers: bearer() });
+  assert.equal(bad.status, 400);
+});
+
 // ---------------------------------------------------------------------------
 // Rattachement d'un média à une fiche
 // ---------------------------------------------------------------------------
@@ -358,4 +373,98 @@ test("Media.toPublic : véhicule peuplé => {id, name}, sinon null", () => {
   assert.equal(new Media(base).toPublic().vehicle, null);
   const withId = new Media({ ...base, vehicleId: VEHICLE_ID }).toPublic().vehicle;
   assert.deepEqual(withId, { id: VEHICLE_ID, name: null });
+});
+
+// ---------------------------------------------------------------------------
+// Refonte de l'interface : drapeaux, tri du catalogue, listes enrichies
+// ---------------------------------------------------------------------------
+
+test("flagUrlFrom : URL Commons en HTTPS avec largeur, rien d'autre n'est accepté", async () => {
+  const { flagUrlFrom } = await import("../src/wikipedia.js");
+  assert.equal(
+    flagUrlFrom("http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20France.svg"),
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20France.svg?width=640",
+  );
+  assert.equal(flagUrlFrom("https://exemple.com/drapeau.png"), null);
+  assert.equal(flagUrlFrom(undefined), null);
+});
+
+test("classifyVehicles : origines avec code ISO et drapeau, un seul drapeau par pays", async () => {
+  const flag = (name) => ({ value: `http://commons.wikimedia.org/wiki/Special:FilePath/Flag%20of%20${name}.svg` });
+  const row = (country, label, code, flagName) => ({
+    item: { value: "http://www.wikidata.org/entity/Q159601" },
+    category: { value: "helicopter" },
+    country: { value: `http://www.wikidata.org/entity/${country}` },
+    countryLabel: { value: label },
+    ...(code && { code: { value: code } }),
+    ...(flagName && { flag: flag(flagName) }),
+  });
+  const { impl } = fakeFetch({
+    classification: {
+      results: {
+        bindings: [
+          row("Q183", "Allemagne", "DE", "Germany"),
+          row("Q183", "Allemagne", "DE", "Germany_(1867)"), // drapeau historique ignoré
+          row("Q142", "France", "FR", "France"),
+          row("Q15180", "Union soviétique", null, "the_Soviet_Union"),
+        ],
+      },
+    },
+  });
+  const origins = (await classifyVehicles(["Q159601"], impl)).get("Q159601").origins;
+
+  assert.deepEqual(origins.map((o) => [o.name, o.code]), [["Allemagne", "de"], ["France", "fr"], ["Union soviétique", null]]);
+  assert.match(origins[0].flagUrl, /Flag%20of%20Germany\.svg\?width=640$/);
+});
+
+test("GET /api/vehicles : tri par popularité par défaut, tri validé", async (t) => {
+  const pipelines = [];
+  stub(t, Vehicle, "aggregatePaginate", async (aggregate, o) => {
+    pipelines.push(aggregate.pipeline());
+    return { docs: [], totalDocs: 0, limit: o.limit, page: o.page, totalPages: 1 };
+  });
+  const sortStage = (p) => p.find((s) => s.$sort).$sort;
+
+  await fetch(`${base}/api/vehicles`, { headers: bearer() });
+  await fetch(`${base}/api/vehicles?sort=recent`, { headers: bearer() });
+  assert.deepEqual(sortStage(pipelines[0]), { mediaCount: -1, name: 1 });
+  assert.deepEqual(sortStage(pipelines[1]), { createdAt: -1 });
+
+  // Le compteur ne compte que les médias publics.
+  const lookup = pipelines[0].find((s) => s.$lookup).$lookup;
+  assert.equal(lookup.from, "media");
+  assert.equal(lookup.pipeline[0].$match.visibility, "public");
+
+  assert.equal((await fetch(`${base}/api/vehicles?sort=prix`, { headers: bearer() })).status, 400);
+});
+
+test("GET /api/vehicles/:id/media : chaque média reçoit une URL de lecture valable pour le lecteur", async (t) => {
+  const MEDIA_ID = new mongoose.Types.ObjectId().toString();
+  stub(t, Media, "aggregatePaginate", async (_a, o) => ({
+    docs: [{ id: MEDIA_ID, kind: "image", owner: { id: OTHER, name: "Lucas" } }],
+    totalDocs: 1,
+    limit: o.limit,
+    page: o.page,
+    totalPages: 1,
+  }));
+
+  const json = await (await fetch(`${base}/api/vehicles/${VEHICLE_ID}/media`, { headers: bearer() })).json();
+  const url = new URL(json.docs[0].url, base);
+  assert.equal(url.pathname, `/api/media/${MEDIA_ID}/file`);
+  const payload = jwt.verify(url.searchParams.get("token"), SECRET);
+  assert.deepEqual([payload.sub, payload.mid, payload.scope], [USER, MEDIA_ID, "stream"]);
+});
+
+test("liste de médias : l'auteur joint n'expose que son nom", async () => {
+  const { publicMediaPipeline } = await import("../src/models/Media.js");
+  const ownerLookup = publicMediaPipeline({}).find((s) => s.$lookup?.from === "users").$lookup;
+  assert.deepEqual(ownerLookup.pipeline, [{ $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } }]);
+});
+
+test("buildClassificationQuery : pays d'origine, sinon pays, sinon pays du constructeur", () => {
+  const query = buildClassificationQuery(["Q200038"]);
+  assert.match(query, /\?item wdt:P495 \?origin/);
+  assert.match(query, /\?item wdt:P17 \?itemCountry/);
+  assert.match(query, /\?item wdt:P176\/wdt:P17 \?makerCountry/);
+  assert.match(query, /COALESCE\(\?origin, \?itemCountry, \?makerCountry\) AS \?country/);
 });

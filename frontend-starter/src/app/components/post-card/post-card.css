@@ -1,0 +1,46 @@
+:host { display: block; }
+
+.post { padding: 1.2rem 1.2rem 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+
+.post-header { display: flex; align-items: center; gap: 0.8rem; }
+.who { flex: 1; min-width: 0; }
+.who b, .author { display: block; font-weight: 700; }
+.author { color: var(--text); text-decoration: none; }
+.author:hover { text-decoration: underline; }
+.who small { color: var(--muted); }
+.icon-button { padding: 0.4rem; color: var(--muted); }
+.menu { position: relative; }
+.menu-panel { position: absolute; z-index: 5; top: 100%; right: 0; padding: 0.3rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
+.menu-panel button { white-space: nowrap; }
+.danger-text { color: var(--danger); }
+
+.text { margin: 0.9rem 0 0.7rem; font-size: 1.02rem; line-height: 1.55; white-space: pre-line; }
+
+.tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; }
+.vehicle-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.65rem; color: var(--text); font-size: 0.85rem; text-decoration: none; background: var(--surface-3); border-radius: 999px; --icon-size: 0.95rem; }
+.vehicle-chip:hover { background: #3a3f46; }
+.tags .pill { font-size: 0.8rem; }
+
+.media { overflow: hidden; border-radius: 12px; }
+.media-image, .media-video { background: #000; }
+.media img, .media video { display: block; width: 100%; max-height: 520px; object-fit: contain; }
+
+.counts { display: flex; justify-content: space-between; padding: 0.8rem 0 0.7rem; color: var(--muted); font-size: 0.9rem; border-bottom: 1px solid var(--border); }
+.link { padding: 0; color: var(--muted); font-weight: 400; background: none; }
+.link:hover:not(:disabled) { color: var(--text); background: none; text-decoration: underline; }
+
+.actions { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0.3rem 0; }
+.actions button { color: var(--muted); font-weight: 500; }
+.actions button:hover:not(:disabled) { color: var(--text); }
+.actions button.liked { color: var(--accent); }
+.status { margin: 0 0 0.6rem; color: var(--muted); font-size: 0.85rem; text-align: center; overflow-wrap: anywhere; }
+
+.comments { display: grid; gap: 0.7rem; padding: 0.8rem 0 0.9rem; border-top: 1px solid var(--border); }
+.comment { display: flex; gap: 0.6rem; }
+.comment .small { --avatar-size: 2rem; }
+.bubble { padding: 0.5rem 0.8rem; background: var(--surface-2); border-radius: 12px; }
+.bubble small { color: var(--muted); }
+.bubble p { margin: 0.2rem 0 0; line-height: 1.45; }
+.comment-form { display: flex; gap: 0.5rem; }
+.comment-form input { flex: 1; }
+.comment-form button { padding: 0.6rem 0.8rem; }

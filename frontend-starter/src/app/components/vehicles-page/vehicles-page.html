@@ -1,69 +1,113 @@
 <section>
-  <div class="hero">
-    <p class="eyebrow">FICHES</p>
-    <h1>Avions, hélicoptères et blindés</h1>
-    <p>Chaque fiche est vérifiée et complétée automatiquement à partir de Wikipédia.</p>
-  </div>
+  <p class="eyebrow">Fiches</p>
+  <h1 class="page-title">Avions, hélicoptères et blindés</h1>
+  <p class="page-subtitle">Les fiches sont créées et complétées automatiquement à partir de Wikipédia.</p>
 
-  <div class="grid">
-    <article class="card">
-      <h2>Ajouter une fiche</h2>
-      <label>
-        Nom du véhicule
-        <input [formControl]="newName" placeholder="Mirage 2000, T-34, VBCI…" (keydown.enter)="create()" />
-      </label>
-      <button type="button" (click)="create()" [disabled]="creating() || newName.value.trim().length < 2">
-        {{ creating() ? 'Recherche sur Wikipédia…' : 'Créer la fiche' }}
+  <div class="toolbar">
+    <label class="search-field">
+      <app-icon name="search" />
+      <input [formControl]="search" type="search" placeholder="Rechercher un véhicule…" aria-label="Rechercher un véhicule" />
+    </label>
+
+    <div class="sort">
+      <button
+        type="button"
+        class="sort-button"
+        [class.open]="sortOpen()"
+        aria-haspopup="listbox"
+        [attr.aria-expanded]="sortOpen()"
+        (click)="sortOpen.set(!sortOpen())"
+      >
+        <app-icon name="sort" />
+        <span class="hint">Trier :</span> {{ sortLabels[sort()] }}
+        <app-icon name="chevron-down" />
       </button>
-      @if (createError()) {
-        <p class="error" role="alert">{{ createError() }}</p>
-      }
-      <small class="hint">Si la fiche existe déjà, elle est simplement ouverte.</small>
-    </article>
-
-    <article class="card">
-      <label>Rechercher<input [formControl]="search" placeholder="Nom d'un véhicule…" /></label>
-
-      <div class="chips" role="group" aria-label="Filtrer par catégorie">
-        <button type="button" [class.active]="category() === null" (click)="filter(null)">Toutes</button>
-        @for (c of categories; track c) {
-          <button type="button" [class.active]="category() === c" (click)="filter(c)">{{ labels[c] }}s</button>
-        }
-      </div>
-
-      @if (loading()) {
-        <p>Chargement…</p>
-      }
-      @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
-      }
-
-      <div class="media-grid">
-        @for (vehicle of vehicles(); track vehicle.id) {
-          <a class="vehicle-card" [routerLink]="['/vehicles', vehicle.id]">
-            @if (vehicle.imageUrl) {
-              <img [src]="vehicle.imageUrl" [alt]="vehicle.name" loading="lazy" />
-            } @else {
-              <div class="placeholder" aria-hidden="true">✈</div>
-            }
-            <span class="badge">{{ labels[vehicle.category] }}</span>
-            <b>{{ vehicle.name }}</b>
-            @if (vehicle.countries.length) {
-              <small>{{ vehicle.countries.join(', ') }}</small>
-            }
-          </a>
-        } @empty {
-          @if (!loading()) {
-            <p>Aucune fiche pour l'instant.</p>
+      @if (sortOpen()) {
+        <ul class="sort-menu" role="listbox" aria-label="Trier les fiches">
+          @for (s of sorts; track s) {
+            <li role="option" [attr.aria-selected]="s === sort()">
+              <button type="button" class="ghost" (click)="chooseSort(s)">
+                {{ sortLabels[s] }}
+                @if (s === sort()) {
+                  <app-icon name="check" />
+                }
+              </button>
+            </li>
           }
-        }
-      </div>
+        </ul>
+      }
+    </div>
 
-      <div class="pager">
-        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
-        <span>Page {{ page() }} / {{ pages() }}</span>
-        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
+    <a class="add-button" routerLink="/vehicles/new"><app-icon name="plus" /> Ajouter une fiche</a>
+  </div>
+
+  <div class="chips" role="group" aria-label="Filtrer par catégorie">
+    <button type="button" [class.active]="category() === null" (click)="filter(null)">Toutes</button>
+    @for (c of categories; track c) {
+      <button type="button" [class.active]="category() === c" (click)="filter(c)">{{ labels[c] }}s</button>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+
+  @if (!loading() && !vehicles().length && term()) {
+    <!-- Aucune fiche pour la recherche : proposition de création -->
+    <article class="card state-card">
+      <span class="state-icon"><app-icon name="search" /></span>
+      <p class="eyebrow">Recherche</p>
+      <h2>Aucune fiche pour « {{ term() }} »</h2>
+      <p class="hint">
+        Ce véhicule n'est pas encore dans la base Afterburner. Vous pouvez créer sa fiche : elle sera remplie
+        automatiquement à partir de Wikipédia.
+      </p>
+      @if (suggestions().length) {
+        <p class="hint small">Vous cherchiez peut-être :</p>
+        <div class="chips">
+          @for (s of suggestions(); track s.id) {
+            <a class="suggestion" [routerLink]="['/vehicles', s.id]">{{ s.name }}</a>
+          }
+        </div>
+      }
+      <div class="actions">
+        <button type="button" (click)="createFromSearch()"><app-icon name="plus" /> Créer la fiche</button>
+        <button type="button" class="secondary" (click)="clearSearch()">Retour à la liste</button>
       </div>
     </article>
-  </div>
+  } @else {
+    <div class="vehicle-grid">
+      @for (vehicle of vehicles(); track vehicle.id; let i = $index) {
+        <a class="vehicle-card" [routerLink]="['/vehicles', vehicle.id]">
+          <div class="visual">
+            <app-flag-backdrop [origins]="vehicle.origins" />
+            <app-vehicle-silhouette class="silhouette" [category]="vehicle.category" />
+            @if (sort() === 'popular') {
+              <span class="rank" [class.top]="rank(i) <= 3">#{{ rank(i) }}</span>
+            }
+          </div>
+          <div class="body">
+            <h2>{{ vehicle.name }}</h2>
+            <div class="meta">
+              <span class="pill pill-accent">{{ labels[vehicle.category] }}</span>
+              <span class="hint">{{ vehicle.countries.join(', ') }}</span>
+            </div>
+            <span class="stat hint"><app-icon name="image" /> {{ vehicle.mediaCount ?? 0 }} médias</span>
+          </div>
+        </a>
+      } @empty {
+        @if (!loading()) {
+          <p class="hint">Aucune fiche pour l'instant. <a routerLink="/vehicles/new">Créer la première</a></p>
+        }
+      }
+    </div>
+
+    @if (pages() > 1) {
+      <div class="pager">
+        <button type="button" class="secondary" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
+        <span>Page {{ page() }} / {{ pages() }}</span>
+        <button type="button" class="secondary" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
+      </div>
+    }
+  }
 </section>

@@ -87,8 +87,8 @@ function publicVehicle(vehicle) {
 
 /**
  * Étapes d'agrégation communes aux listes de médias : tri par date, véhicule
- * joint ({id, name} ou null) et retrait des champs internes. Même forme JSON
- * que toPublic().
+ * joint ({id, name} ou null), auteur ({id, name}) et retrait des champs
+ * internes. Même forme JSON que toPublic(), plus `owner`.
  */
 export function publicMediaPipeline(match) {
   return [
@@ -104,10 +104,21 @@ export function publicMediaPipeline(match) {
       },
     },
     {
+      $lookup: {
+        from: "users",
+        localField: "ownerId",
+        foreignField: "_id",
+        as: "owner",
+        // Uniquement le nom : jamais l'email ni le hash du mot de passe.
+        pipeline: [{ $project: { _id: 0, id: { $toString: "$_id" }, name: 1 } }],
+      },
+    },
+    {
       $addFields: {
         id: { $toString: "$_id" },
         ownerId: { $toString: "$ownerId" },
         vehicle: { $ifNull: [{ $first: "$vehicle" }, null] },
+        owner: { $ifNull: [{ $first: "$owner" }, null] },
       },
     },
     { $project: { _id: 0, __v: 0, storedName: 0, sharedWith: 0, vehicleId: 0, updatedAt: 0 } },

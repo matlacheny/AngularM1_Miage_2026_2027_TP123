@@ -1,4 +1,4 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -14,6 +14,7 @@ import {
 } from '../../shared/models/media.model';
 import { Vehicle } from '../../shared/models/vehicle.model';
 import { MediaService } from '../../shared/services/media.service';
+import { VehicleService } from '../../shared/services/vehicle.service';
 import { MediaViewerComponent } from '../media-viewer/media-viewer';
 import { VehiclePickerComponent } from '../vehicle-picker/vehicle-picker';
 
@@ -28,6 +29,10 @@ export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 export class HangarPageComponent {
   private readonly service = inject(MediaService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly vehicles = inject(VehicleService);
+
+  /** `?vehicle=` : fiche présélectionnée (bouton « Ajouter un média » d'une fiche). */
+  readonly vehicleParam = input<string>(undefined, { alias: 'vehicle' });
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInputRef');
 
   readonly accepted = ACCEPTED_MEDIA;
@@ -60,6 +65,17 @@ export class HangarPageComponent {
   file?: File;
 
   constructor() {
+    effect(() => {
+      const id = this.vehicleParam();
+      if (!id) return;
+      untracked(() =>
+        this.vehicles.get(id).subscribe({
+          next: (vehicle) => this.vehicle.set(vehicle),
+          error: (error: HttpErrorResponse) => console.error('[HangarPage] Fiche à présélectionner introuvable', error.status),
+        }),
+      );
+    });
+
     this.load();
   }
 

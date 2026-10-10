@@ -12,6 +12,15 @@ const schema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     category: { type: String, required: true, enum: CATEGORIES },
     countries: [{ type: String }],
+    // Pays d'origine détaillés (Wikidata) : code ISO et drapeau, pour l'interface.
+    origins: [
+      {
+        _id: false,
+        name: { type: String, required: true },
+        code: { type: String, default: null },
+        flagUrl: { type: String, default: null },
+      },
+    ],
     summary: { type: String, default: "" },
     imageUrl: { type: String, default: null },
     wikipediaUrl: { type: String, required: true },
@@ -33,6 +42,7 @@ schema.methods.toPublic = function () {
     name: this.name,
     category: this.category,
     countries: this.countries ?? [],
+    origins: (this.origins ?? []).map(({ name, code, flagUrl }) => ({ name, code, flagUrl })),
     summary: this.summary,
     imageUrl: this.imageUrl,
     wikipediaUrl: this.wikipediaUrl,

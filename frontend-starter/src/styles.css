@@ -1,51 +1,124 @@
+/*
+ * Thème « Afterburner » (maquettes Figma) : barre latérale noire, fond béton
+ * gris, cartes anthracite, accent ambre. Toutes les couleurs passent par ces
+ * variables.
+ */
 :root {
+  --bg: #1d1e20;
+  --sidebar: #0c0d0e;
+  --surface: #1a1c1f;
+  --surface-2: #22252a;
+  --surface-3: #2b2f35;
+  --border: #2c3035;
+  --text: #f2f3f4;
+  --muted: #9da2a8;
+  --primary: #d8dadd;
+  --primary-hover: #eceef0;
+  --primary-text: #15171a;
+  --accent: #e8a62a;
+  --accent-soft: rgba(232, 166, 42, 0.14);
+  --success: #5fae6e;
+  --success-soft: rgba(95, 174, 110, 0.16);
+  --danger: #e2564d;
+  --danger-soft: rgba(226, 86, 77, 0.16);
+  --radius: 16px;
+  --sidebar-width: 280px;
+
+  color-scheme: dark;
   font-family: Inter, system-ui, sans-serif;
-  color: #17312a;
-  background: #f3f7f5;
+  color: var(--text);
+  background: var(--bg);
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; }
-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 5vw; color: white; background: #123d32; }
-header small { opacity: 0.7; }
-nav { display: flex; gap: 1rem; }
-a { color: #1d755e; }
-header a { color: white; }
-main { max-width: 1050px; margin: 2rem auto; padding: 0 1rem; }
-.hero { margin-bottom: 1rem; padding: 2rem; color: white; background: linear-gradient(120deg, #123d32, #276c57); border-radius: 20px; }
-.eyebrow { letter-spacing: 0.15em; font-size: 0.75rem; }
-.grid { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
-.card { padding: 1.3rem; background: white; border-radius: 16px; box-shadow: 0 8px 25px #17312a14; }
-.card form, label { display: grid; gap: 0.4rem; }
-label { margin: 0.8rem 0; }
-input { padding: 0.75rem; border: 1px solid #b8cbc5; border-radius: 8px; }
-button { padding: 0.7rem 1rem; color: white; background: #1d755e; border: 0; border-radius: 8px; cursor: pointer; }
-button:disabled { opacity: 0.45; }
+body { margin: 0; min-height: 100vh; }
+h1, h2, h3 { color: var(--text); letter-spacing: -0.01em; }
+a { color: var(--text); }
+p { line-height: 1.6; }
+
+/* ---- Formulaires et boutons ------------------------------------------- */
+
+label { display: grid; gap: 0.4rem; margin: 0.8rem 0; color: var(--muted); font-size: 0.9rem; }
+input, select {
+  padding: 0.75rem 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+}
+input::placeholder { color: var(--muted); }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.1rem;
+  color: var(--primary-text);
+  background: var(--primary);
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { background: var(--primary-hover); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.secondary { color: var(--text); background: var(--surface-2); }
+button.secondary:hover:not(:disabled) { background: var(--surface-3); }
+button.ghost { color: var(--text); background: transparent; }
+button.ghost:hover:not(:disabled) { background: var(--surface-2); }
+button.danger { color: #fff; background: #7a2b26; }
+button.danger:hover:not(:disabled) { background: #9a3530; }
+button.block { width: 100%; }
+
+/* ---- Blocs communs ---------------------------------------------------- */
+
+.card { padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.inset { padding: 1rem 1.2rem; background: var(--surface-2); border-radius: 12px; }
+.eyebrow { margin: 0 0 0.4rem; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+.page-title { margin: 0; font-size: 2.1rem; font-weight: 800; }
+.page-subtitle { margin: 0.3rem 0 0; color: var(--muted); }
+.back-link { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1.2rem; color: var(--muted); text-decoration: none; }
+.back-link:hover { color: var(--text); }
 .row, .pager { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.pager { margin: 1rem 0; }
+.pager { justify-content: center; margin: 2rem 0 1rem; color: var(--muted); }
+.error { color: var(--danger); }
+.success { color: var(--success); }
+.hint { color: var(--muted); }
 audio { width: 100%; }
-.error { color: #a33; }
-.success { color: #1d755e; }
+progress { width: 100%; height: 0.5rem; accent-color: var(--accent); }
 
-.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.8rem; margin: 1rem 0; }
-.media-card { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.9rem; border: 1px solid #e1ebe7; border-radius: 12px; background: #fafcfb; }
-.media-card.playing { border-color: #1d755e; background: #eef7f3; }
+/* Pastilles : catégorie (contour ambre), pays (gris plein) */
+.pill { display: inline-flex; align-items: center; padding: 0.15rem 0.7rem; font-size: 0.85rem; font-weight: 500; border-radius: 999px; white-space: nowrap; }
+.pill-accent { color: var(--accent); border: 1.5px solid var(--accent); }
+.pill-muted { color: var(--text); background: var(--surface-3); }
+.badge { align-self: flex-start; }
+
+/* Filtres en pilules : l'actif est blanc */
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0; }
+.chips button { padding: 0.45rem 1rem; color: var(--text); background: var(--surface-2); border-radius: 999px; font-weight: 500; }
+.chips button:hover:not(:disabled) { background: var(--surface-3); }
+.chips button.active { color: var(--primary-text); background: var(--primary); }
+
+/* Grilles de médias (hangar, publications) */
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.media-card { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.8rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.media-card.playing { border-color: var(--accent); }
 .media-card h3 { margin: 0; font-size: 1rem; }
-.media-card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; font-size: 0.85rem; color: #61756f; }
+.media-card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; font-size: 0.85rem; color: var(--muted); }
 .media-card dt { font-weight: 600; }
-.media-card dd { margin: 0; }
-.media-card-actions { display: flex; gap: 0.5rem; }
-.media-card-actions button { align-self: flex-start; }
-.media-card-actions .danger { background: #a33; }
-.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0; }
-.chips button { background: #e1ebe7; color: #17312a; }
-.chips button.active { background: #1d755e; color: white; }
-.badge { align-self: flex-start; font-size: 0.75rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 999px; background: #e1ebe7; }
-progress { width: 100%; height: 0.6rem; accent-color: #1d755e; }
+.media-card dd { margin: 0; overflow-wrap: anywhere; }
+.media-card-actions { display: flex; gap: 0.5rem; margin-top: auto; }
 
+/* Mise en page à deux colonnes (hangar, profil) */
+.grid { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; align-items: start; }
 
-@media (max-width: 720px) {
-  header, .grid { display: block; }
-  nav { margin-top: 1rem; }
-  .grid .card { margin-bottom: 1rem; }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
 }

@@ -1,9 +1,104 @@
 :host { display: block; }
-.fiche { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 1.2rem; margin-bottom: 1rem; }
-.fiche img { width: 100%; border-radius: 12px; object-fit: cover; }
-.fiche h1 { margin: 0.4rem 0; }
-.countries { color: #61756f; margin: 0; }
-.fiche small { color: #61756f; }
-@media (max-width: 720px) {
-  .fiche { grid-template-columns: 1fr; }
+
+/* ---- Bandeau ------------------------------------------------------------ */
+
+.hero {
+  position: relative;
+  min-height: 380px;
+  overflow: hidden;
+  background: #16181b;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
+/* Zone du drapeau : pleine hauteur, largeur selon ses proportions (max 70 %). */
+.hero-flag { position: absolute; top: 0; left: 0; height: 100%; max-width: 70%; }
+
+/*
+ * Photo Wikipédia à droite, au premier plan et sans mélange de couleurs :
+ * le drapeau reste dessous. Seul son bord gauche est fondu (mask-image),
+ * pour que la photo se fonde progressivement dans le drapeau.
+ */
+.hero-photo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 62%;
+  height: 100%;
+  object-fit: cover;
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.6) 22%, #000 45%);
+}
+/* Assombrit le bas pour la lisibilité du titre et des pastilles. */
+.hero-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(14, 15, 17, 0.85) 0%, rgba(14, 15, 17, 0) 50%);
+}
+.hero-silhouette { position: absolute; top: 10%; right: 6%; width: 40%; height: 75%; }
+.hero-text { position: absolute; left: 2.2rem; bottom: 2rem; right: 2rem; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6); }
+.hero-group { margin: 0; font-size: 1.4rem; font-weight: 500; }
+.hero h1 { margin: 0.2rem 0 0.9rem; font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 800; line-height: 1.05; }
+.hero-pills { display: flex; flex-wrap: wrap; gap: 0.6rem; text-shadow: none; }
+.hero-pills .pill { padding: 0.3rem 0.9rem; backdrop-filter: blur(6px); }
+.hero-pills .pill-accent { background: rgba(20, 21, 23, 0.55); }
+.hero-pills .pill-muted { background: rgba(43, 47, 53, 0.85); }
+
+/* ---- Résumé et sons ----------------------------------------------------- */
+
+.columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.4rem; margin-top: 1.4rem; align-items: start; }
+.summary { margin: 0 0 1.2rem; font-size: 1.05rem; line-height: 1.7; }
+.facts { display: flex; flex-wrap: wrap; gap: 2.5rem; margin: 0 0 1rem; }
+.facts dt { color: var(--muted); font-size: 0.9rem; }
+.facts dd { margin: 0.1rem 0 0; font-size: 1.1rem; font-weight: 600; }
+.source { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); font-size: 0.9rem; text-decoration: none; }
+.source:hover { color: var(--text); }
+
+.now-playing { margin: 0 0 0.8rem; font-size: 1.1rem; }
+.sound-list { display: grid; gap: 0.2rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.sound-list button { width: 100%; justify-content: flex-start; gap: 0.8rem; padding: 0.7rem 0.8rem; font-weight: 500; text-align: left; }
+.sound-list button app-icon { color: var(--muted); }
+.sound-list button.active { font-weight: 700; background: var(--surface-2); }
+.sound-list button.active app-icon { color: var(--accent); }
+
+/* ---- Publications ------------------------------------------------------- */
+
+.posts { margin-top: 2.5rem; }
+.posts h2 { margin: 0; font-size: 1.7rem; }
+.post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.4rem; margin-top: 1.2rem; }
+.post { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.9rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.post.playing { border-color: var(--accent); }
+.post h3 { margin: 0.2rem 0 0; font-size: 1.1rem; }
+.author { margin: 0; font-size: 0.9rem; }
+.post button.block { margin-top: auto; }
+
+.thumb { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; background: linear-gradient(135deg, #4b4a46, #b07a1f); }
+.thumb-video { background: linear-gradient(135deg, #3b4652, #6d8094); }
+.thumb-audio { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2b2f35, #4a3a1c); }
+.thumb img, .thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.play-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  color: var(--text);
+  background: rgba(20, 21, 23, 0.8);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.audio-thumb { color: var(--accent); --icon-size: 2.4rem; }
+
+@media (max-width: 900px) {
+  .columns { grid-template-columns: 1fr; }
+  .hero { min-height: 320px; }
+  .hero-photo { width: 100%; }
+  .posts .row { flex-direction: column; align-items: flex-start; }
+}
+
+/* Étoile « véhicule préféré » du bandeau */
+.favorite { padding: 0.3rem 0.9rem; color: var(--text); font-size: 0.85rem; font-weight: 500; text-shadow: none; background: rgba(20, 21, 23, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 999px; backdrop-filter: blur(6px); }
+.favorite:hover:not(:disabled) { background: rgba(20, 21, 23, 0.8); }
+.favorite.on { color: var(--accent); border-color: var(--accent); }
+.favorite-error { margin: 0.5rem 0 0; text-shadow: none; }

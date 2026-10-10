@@ -15,6 +15,10 @@ export interface Media {
   visibility: Visibility;
   /** Fiche véhicule rattachée, ou `null`. */
   vehicle: VehicleRef | null;
+  /** Auteur (présent dans les listes). */
+  owner?: { id: string; name: string } | null;
+  /** URL de lecture signée (présente dans les listes, valable 10 min). */
+  url?: string;
   createdAt: string;
 }
 

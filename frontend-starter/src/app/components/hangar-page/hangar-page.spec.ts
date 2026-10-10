@@ -186,6 +186,7 @@ describe('HangarPageComponent', () => {
       name: 'Dassault Rafale',
       category: 'aircraft',
       countries: ['France'],
+      origins: [{ name: 'France', code: 'fr', flagUrl: null }],
       summary: '',
       imageUrl: null,
       wikipediaUrl: 'https://fr.wikipedia.org/wiki/Dassault_Rafale',
@@ -205,5 +206,25 @@ describe('HangarPageComponent', () => {
     const link = (fixture.nativeElement as HTMLElement).querySelector('a.vehicle-link');
     expect(link?.textContent).toContain('Dassault Rafale');
     expect(link?.getAttribute('href')).toBe('/vehicles/veh1');
+  });
+
+  it('présélectionne la fiche passée en paramètre ?vehicle=', () => {
+    expectList().flush(page([]));
+    fixture.componentRef.setInput('vehicle', 'veh1');
+    fixture.detectChanges();
+
+    http.expectOne('/api/vehicles/veh1').flush({
+      id: 'veh1',
+      wikidataId: 'Q242398',
+      name: 'Char Leclerc',
+      category: 'tank',
+      countries: ['France'],
+      origins: [{ name: 'France', code: 'fr', flagUrl: null }],
+      summary: '',
+      imageUrl: null,
+      wikipediaUrl: 'https://fr.wikipedia.org/wiki/Char_Leclerc',
+      createdAt: '2026-10-08T10:00:00.000Z',
+    });
+    expect(component.vehicle()?.name).toBe('Char Leclerc');
   });
 });
