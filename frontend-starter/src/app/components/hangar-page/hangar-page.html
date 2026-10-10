@@ -1,0 +1,128 @@
+<section>
+  <div class="hero">
+    <p class="eyebrow">MON HANGAR</p>
+    <h1>Sons, photos et vidéos</h1>
+    <p>Ajoutez vos enregistrements de moteurs, vos photos de meeting et vos vidéos, puis choisissez qui peut les voir.</p>
+  </div>
+
+  <div class="grid">
+    <article class="card">
+      <h2>Ajouter</h2>
+      <label>Titre<input [formControl]="title" placeholder="Rafale — passage basse altitude" /></label>
+      <label>
+        Visibilité
+        <select [formControl]="visibility">
+          @for (v of visibilities; track v) {
+            <option [value]="v">{{ visibilityLabels[v] }}</option>
+          }
+        </select>
+      </label>
+      <app-vehicle-picker [(selected)]="vehicle" />
+      <label>
+        Fichier
+        <input
+          #fileInputRef
+          type="file"
+          [accept]="accepted"
+          [disabled]="uploading()"
+          (change)="choose($event)"
+        />
+      </label>
+      <small class="hint">Sons 25 Mo · photos 10 Mo · vidéos MP4/WebM 100 Mo</small>
+
+      @if (uploading()) {
+        <progress [value]="uploadProgress()" max="100" aria-label="Progression de l'envoi"></progress>
+        <p role="status">Envoi en cours : {{ uploadProgress() }}%</p>
+      } @else if (uploadMessage()) {
+        <p [class]="uploadStatus() === 'success' ? 'success' : 'error'" [attr.role]="uploadStatus() === 'success' ? 'status' : 'alert'">
+          {{ uploadMessage() }}
+        </p>
+      }
+
+      <button type="button" (click)="upload()" [disabled]="!file || uploading()">
+        {{ uploading() ? 'Envoi…' : 'Envoyer' }}
+      </button>
+    </article>
+
+    <article class="card">
+      <div class="row">
+        <h2>Mes médias</h2>
+        <button type="button" (click)="load()">Actualiser</button>
+      </div>
+
+      <div class="chips" role="group" aria-label="Filtrer par type">
+        <button type="button" [class.active]="kindFilter() === null" (click)="filter(null)">Tous</button>
+        @for (k of kinds; track k) {
+          <button type="button" [class.active]="kindFilter() === k" (click)="filter(k)">{{ kindLabels[k] }}s</button>
+        }
+      </div>
+
+      @if (opened(); as o) {
+        <app-media-viewer [media]="o.media" [url]="o.url" (closed)="close()" />
+      }
+
+      @if (loading()) {
+        <p>Chargement…</p>
+      }
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+
+      <div class="media-grid">
+        @for (media of items(); track media.id) {
+          <article class="media-card" [class.playing]="opened()?.media?.id === media.id">
+            <div class="media-card-body">
+              <span class="badge">{{ kindLabels[media.kind] }}</span>
+              <h3>{{ media.title }}</h3>
+              @if (media.vehicle; as vehicle) {
+                <a class="vehicle-link" [routerLink]="['/vehicles', vehicle.id]">{{ vehicle.name ?? 'Fiche véhicule' }}</a>
+              }
+              <dl>
+                <div><dt>Fichier</dt><dd>{{ media.originalName }}</dd></div>
+                <div><dt>Taille</dt><dd>{{ formatSize(media.size) }}</dd></div>
+                <div><dt>Ajouté le</dt><dd>{{ formatDate(media.createdAt) }}</dd></div>
+              </dl>
+              <label>
+                Visibilité
+                <select
+                  [value]="media.visibility"
+                  [disabled]="busyId() !== null"
+                  (change)="changeVisibility(media, $event)"
+                  [attr.aria-label]="'Visibilité de ' + media.title"
+                >
+                  @for (v of visibilities; track v) {
+                    <option [value]="v" [selected]="v === media.visibility">{{ visibilityLabels[v] }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+            <div class="media-card-actions">
+              <button type="button" (click)="open(media)" [attr.aria-label]="'Ouvrir ' + media.title">
+                {{ media.kind === 'image' ? 'Voir' : '▶' }}
+              </button>
+              <button
+                type="button"
+                class="danger"
+                (click)="remove(media)"
+                [disabled]="busyId() !== null"
+                [attr.aria-label]="'Supprimer ' + media.title"
+              >
+                {{ busyId() === media.id ? '…' : 'Supprimer' }}
+              </button>
+            </div>
+          </article>
+        } @empty {
+          @if (!loading()) {
+            <p>Le hangar est vide.</p>
+          }
+        }
+      </div>
+
+      <div class="pager">
+        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
+        <span>Page {{ page() }} / {{ pages() }}</span>
+        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
+      </div>
+    </article>
+  </div>
+</section>

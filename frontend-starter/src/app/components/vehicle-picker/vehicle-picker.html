@@ -1,0 +1,43 @@
+<div class="picker">
+  @if (selected(); as vehicle) {
+    <div class="chosen">
+      <span>
+        <b>{{ vehicle.name }}</b>
+        <small>{{ labels[vehicle.category] }}</small>
+      </span>
+      <button type="button" class="ghost" (click)="clear()" [attr.aria-label]="'Retirer ' + vehicle.name">✕</button>
+    </div>
+  } @else {
+    <label>
+      Véhicule (facultatif)
+      <input
+        [formControl]="query"
+        placeholder="Rafale, Leclerc, Tigre…"
+        autocomplete="off"
+        (keydown.enter)="$event.preventDefault(); create()"
+      />
+    </label>
+
+    @if (suggestions().length) {
+      <ul class="suggestions" aria-label="Fiches existantes">
+        @for (vehicle of suggestions(); track vehicle.id) {
+          <li>
+            <button type="button" class="ghost" (click)="choose(vehicle)">
+              {{ vehicle.name }} <small>· {{ labels[vehicle.category] }}</small>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (query.value.trim().length >= 2) {
+      <button type="button" class="secondary" (click)="create()" [disabled]="creating()">
+        {{ creating() ? 'Recherche sur Wikipédia…' : 'Trouver « ' + query.value.trim() + ' » sur Wikipédia' }}
+      </button>
+    }
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+  }
+</div>

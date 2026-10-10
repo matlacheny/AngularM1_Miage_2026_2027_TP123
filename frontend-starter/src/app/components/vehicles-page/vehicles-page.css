@@ -1,0 +1,7 @@
+:host { display: block; }
+.hint { color: #61756f; }
+.vehicle-card { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.7rem; border: 1px solid #e1ebe7; border-radius: 12px; background: #fafcfb; color: inherit; text-decoration: none; }
+.vehicle-card:hover, .vehicle-card:focus-visible { border-color: #1d755e; }
+.vehicle-card img, .placeholder { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: #e1ebe7; }
+.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #9fb5ae; }
+.vehicle-card small { color: #61756f; }

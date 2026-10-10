@@ -1,8 +1,8 @@
 /**
- * Paginated response used by the tracks endpoint.
+ * Paginated response used by the media endpoint.
  *
  * AVANCÉ (facultatif, TP2) : this matches the shape returned by the backend's
- * `mongoose-aggregate-paginate-v2` plugin (`Track.aggregatePaginate(...)` in
+ * `mongoose-aggregate-paginate-v2` plugin (`Media.aggregatePaginate(...)` in
  * `backend/src/app.js`), which replaced the earlier hand-written
  * `{ items, page, limit, total, pages }` shape. See `API_CONTRACT.md`.
  */

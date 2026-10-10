@@ -24,9 +24,9 @@ describe('authInterceptor', () => {
   it('ajoute Authorization: Bearer <token> lorsqu’un token existe', () => {
     auth.token.set('jwt-simule');
 
-    client.get('/api/tracks').subscribe();
+    client.get('/api/media').subscribe();
 
-    const req = http.expectOne('/api/tracks');
+    const req = http.expectOne('/api/media');
     expect(req.request.headers.get('Authorization')).toBe('Bearer jwt-simule');
     req.flush({});
   });

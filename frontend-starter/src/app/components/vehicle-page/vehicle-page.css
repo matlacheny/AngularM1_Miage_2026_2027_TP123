@@ -1,0 +1,9 @@
+:host { display: block; }
+.fiche { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 1.2rem; margin-bottom: 1rem; }
+.fiche img { width: 100%; border-radius: 12px; object-fit: cover; }
+.fiche h1 { margin: 0.4rem 0; }
+.countries { color: #61756f; margin: 0; }
+.fiche small { color: #61756f; }
+@media (max-width: 720px) {
+  .fiche { grid-template-columns: 1fr; }
+}

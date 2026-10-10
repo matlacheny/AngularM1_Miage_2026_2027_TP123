@@ -1,0 +1,69 @@
+<section>
+  <div class="hero">
+    <p class="eyebrow">FICHES</p>
+    <h1>Avions, hélicoptères et blindés</h1>
+    <p>Chaque fiche est vérifiée et complétée automatiquement à partir de Wikipédia.</p>
+  </div>
+
+  <div class="grid">
+    <article class="card">
+      <h2>Ajouter une fiche</h2>
+      <label>
+        Nom du véhicule
+        <input [formControl]="newName" placeholder="Mirage 2000, T-34, VBCI…" (keydown.enter)="create()" />
+      </label>
+      <button type="button" (click)="create()" [disabled]="creating() || newName.value.trim().length < 2">
+        {{ creating() ? 'Recherche sur Wikipédia…' : 'Créer la fiche' }}
+      </button>
+      @if (createError()) {
+        <p class="error" role="alert">{{ createError() }}</p>
+      }
+      <small class="hint">Si la fiche existe déjà, elle est simplement ouverte.</small>
+    </article>
+
+    <article class="card">
+      <label>Rechercher<input [formControl]="search" placeholder="Nom d'un véhicule…" /></label>
+
+      <div class="chips" role="group" aria-label="Filtrer par catégorie">
+        <button type="button" [class.active]="category() === null" (click)="filter(null)">Toutes</button>
+        @for (c of categories; track c) {
+          <button type="button" [class.active]="category() === c" (click)="filter(c)">{{ labels[c] }}s</button>
+        }
+      </div>
+
+      @if (loading()) {
+        <p>Chargement…</p>
+      }
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+
+      <div class="media-grid">
+        @for (vehicle of vehicles(); track vehicle.id) {
+          <a class="vehicle-card" [routerLink]="['/vehicles', vehicle.id]">
+            @if (vehicle.imageUrl) {
+              <img [src]="vehicle.imageUrl" [alt]="vehicle.name" loading="lazy" />
+            } @else {
+              <div class="placeholder" aria-hidden="true">✈</div>
+            }
+            <span class="badge">{{ labels[vehicle.category] }}</span>
+            <b>{{ vehicle.name }}</b>
+            @if (vehicle.countries.length) {
+              <small>{{ vehicle.countries.join(', ') }}</small>
+            }
+          </a>
+        } @empty {
+          @if (!loading()) {
+            <p>Aucune fiche pour l'instant.</p>
+          }
+        }
+      </div>
+
+      <div class="pager">
+        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
+        <span>Page {{ page() }} / {{ pages() }}</span>
+        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
+      </div>
+    </article>
+  </div>
+</section>

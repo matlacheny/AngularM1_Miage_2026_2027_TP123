@@ -1,0 +1,73 @@
+<section>
+  <p><a routerLink="/vehicles">← Toutes les fiches</a></p>
+
+  @if (notFound()) {
+    <p class="error" role="alert">Cette fiche n'existe pas.</p>
+  } @else if (vehicle(); as v) {
+    <article class="card fiche">
+      @if (v.imageUrl) {
+        <img [src]="v.imageUrl" [alt]="v.name" />
+      }
+      <div class="fiche-body">
+        <span class="badge">{{ categoryLabels[v.category] }}</span>
+        <h1>{{ v.name }}</h1>
+        @if (v.countries.length) {
+          <p class="countries">Origine : {{ v.countries.join(', ') }}</p>
+        }
+        <p>{{ v.summary }}</p>
+        <small>
+          Source : <a [href]="v.wikipediaUrl" target="_blank" rel="noopener">Wikipédia</a>
+          (texte et image sous licence CC BY-SA).
+        </small>
+      </div>
+    </article>
+  } @else {
+    <p>Chargement…</p>
+  }
+
+  @if (!notFound()) {
+    <article class="card">
+      <h2>Médias</h2>
+      <div class="chips" role="group" aria-label="Filtrer par type">
+        <button type="button" [class.active]="kind() === null" (click)="filter(null)">Tous</button>
+        @for (k of kinds; track k) {
+          <button type="button" [class.active]="kind() === k" (click)="filter(k)">{{ kindLabels[k] }}s</button>
+        }
+      </div>
+
+      @if (opened(); as o) {
+        <app-media-viewer [media]="o.media" [url]="o.url" (closed)="opened.set(null)" />
+      }
+      @if (loadingMedia()) {
+        <p>Chargement…</p>
+      }
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+
+      <div class="media-grid">
+        @for (m of media(); track m.id) {
+          <article class="media-card" [class.playing]="opened()?.media?.id === m.id">
+            <span class="badge">{{ kindLabels[m.kind] }}</span>
+            <h3>{{ m.title }}</h3>
+            <div class="media-card-actions">
+              <button type="button" (click)="open(m)" [attr.aria-label]="'Ouvrir ' + m.title">
+                {{ m.kind === 'image' ? 'Voir' : '▶' }}
+              </button>
+            </div>
+          </article>
+        } @empty {
+          @if (!loadingMedia()) {
+            <p>Aucun média visible pour ce véhicule. Ajoutez-en depuis <a routerLink="/hangar">Mon hangar</a>.</p>
+          }
+        }
+      </div>
+
+      <div class="pager">
+        <button type="button" (click)="go(page() - 1)" [disabled]="page() === 1">Précédent</button>
+        <span>Page {{ page() }} / {{ pages() }}</span>
+        <button type="button" (click)="go(page() + 1)" [disabled]="page() === pages()">Suivant</button>
+      </div>
+    </article>
+  }
+</section>

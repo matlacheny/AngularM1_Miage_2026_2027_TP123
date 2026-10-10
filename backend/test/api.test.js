@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import { createApp } from "../src/app.js";
 import { User } from "../src/models/User.js";
-import { Track } from "../src/models/Track.js";
+import { Media } from "../src/models/Media.js";
 
 let server, base;
 
@@ -29,8 +29,9 @@ test("schémas Mongoose et relation", () => {
   });
 
   assert.equal(u.email, "test@example.com");
-  const t = new Track({
+  const t = new Media({
     ownerId: new mongoose.Types.ObjectId(),
+    kind: "audio",
     title: "Blues",
     originalName: "b.mp3",
     storedName: "x.mp3",
@@ -39,5 +40,5 @@ test("schémas Mongoose et relation", () => {
   });
   
   assert.equal(t.title, "Blues");
-  assert.equal(Track.schema.path("ownerId").options.ref, "User");
+  assert.equal(Media.schema.path("ownerId").options.ref, "User");
 });
