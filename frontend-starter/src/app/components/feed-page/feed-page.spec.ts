@@ -42,7 +42,11 @@ describe('FeedPageComponent', () => {
 
   /** Fil principal (scope absent) ou posts de l'escadrille (scope=friends). */
   const expectFeed = (friends = false): TestRequest =>
-    http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('scope') === (friends ? 'friends' : null));
+    http.expectOne(
+      (r) => r.url === '/api/posts/feed' && r.params.get('scope') === (friends ? 'friends' : null) && r.params.get('media') === null,
+    );
+  /** Bloc « Derniers ajouts » : posts avec fichier, tout le réseau. */
+  const expectLatest = (): TestRequest => http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('media') === '1');
   const element = () => fixture.nativeElement as HTMLElement;
   const render = async () => {
     fixture.detectChanges();
@@ -61,14 +65,18 @@ describe('FeedPageComponent', () => {
 
   afterEach(() => http.verify());
 
-  /** Les 3 requêtes de départ : fil, recommandations, posts récents. */
-  const flushInitial = (feed = page([post('p1', 'Lucas Bernard')]), recent = page<Post>([])) => {
+  /** Les 4 requêtes de départ : fil, recommandations, posts récents, derniers ajouts. */
+  const flushInitial = (feed = page([post('p1', 'Lucas Bernard')]), recent = page<Post>([]), latest = page<Post>([])) => {
     expectFeed().flush(feed);
     const reco = http.expectOne((r) => r.url === '/api/vehicles');
     expect(reco.request.params.get('sort')).toBe('popular');
     expect(reco.request.params.get('limit')).toBe('4');
     reco.flush(page([rafale]));
     expectFeed(true).flush(recent);
+    const latestRequest = expectLatest();
+    expect(latestRequest.request.params.get('limit')).toBe('4');
+    expect(latestRequest.request.params.get('scope')).toBeNull();
+    latestRequest.flush(latest);
   };
 
   it('affiche le fil, les véhicules recommandés et les posts récents', async () => {
@@ -80,10 +88,41 @@ describe('FeedPageComponent', () => {
     const reco = element().querySelector('.side-card a.side-item')!;
     expect(reco.getAttribute('href')).toBe('/vehicles/v1');
     expect(reco.querySelector('app-flag-backdrop')).not.toBeNull();
-    const recent = [...element().querySelectorAll('.side-card')][1];
+    const recent = [...element().querySelectorAll('.side-card')][2];
     expect(recent.textContent).toContain('Sarah Nguyen');
     expect(recent.textContent).toContain('Photo · Dassault Rafale');
     expect(recent.querySelector('.ago')?.classList.contains('fresh')).toBe(false); // plus de 24 h
+  });
+
+  it('« Derniers ajouts » : fichiers récents, lien vers le post et vers la recherche', async () => {
+    const video = { ...post('p3', 'Hugo Petit'), media: { id: 'm3', kind: 'video' as const, title: 'EBRC Jaguar (5)', mimeType: 'video/mp4', url: '' } };
+    flushInitial(undefined, undefined, page([video]));
+    await render();
+
+    const latest = element().querySelector('[aria-labelledby="latest-title"]')!;
+    expect(latest.querySelector('h2')?.textContent).toContain('Derniers ajouts');
+    expect(latest.querySelector('.side-head a')?.getAttribute('href')).toBe('/search');
+    const item = latest.querySelector('a.side-item')!;
+    expect(item.getAttribute('href')).toBe('/posts/p3');
+    expect(item.querySelector('b')?.textContent).toContain('EBRC Jaguar (5)');
+    expect(item.textContent).toContain('Vidéo · Hugo Petit');
+    expect(item.querySelector('.ago')?.classList.contains('fresh')).toBe(true);
+  });
+
+  it('« Derniers ajouts » vide : message', async () => {
+    flushInitial();
+    await render();
+    expect(element().querySelector('[aria-labelledby="latest-title"]')?.textContent).toContain('Aucun fichier publié');
+  });
+
+  it('« Derniers ajouts » suit les publications et suppressions', () => {
+    flushInitial(undefined, undefined, page([post('p1', 'A'), post('p2', 'B'), post('p3', 'C'), post('p4', 'D')]));
+    component.onPublished({ ...post('text', 'Matteo'), media: null });
+    expect(component.latestFiles().map((p) => p.id)).toEqual(['p1', 'p2', 'p3', 'p4']);
+    component.onPublished(post('new', 'Matteo'));
+    expect(component.latestFiles().map((p) => p.id)).toEqual(['new', 'p1', 'p2', 'p3']);
+    component.onDeleted('p1');
+    expect(component.latestFiles().map((p) => p.id)).toEqual(['new', 'p2', 'p3']);
   });
 
   it('« plus anciennes » ajoute la page suivante à la suite', async () => {
@@ -123,11 +162,14 @@ describe('FeedPageComponent — onglet escadrille', () => {
     const http = TestBed.inject(HttpTestingController);
     const component = TestBed.createComponent(FeedPageComponent).componentInstance;
     const feed = (friends: boolean) =>
-      http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('scope') === (friends ? 'friends' : null) && r.params.get('limit') === '10');
+      http.expectOne(
+        (r) => r.url === '/api/posts/feed' && r.params.get('scope') === (friends ? 'friends' : null) && r.params.get('limit') === '10' && r.params.get('media') === null,
+      );
 
     feed(false).flush(page([]));
     http.expectOne((r) => r.url === '/api/vehicles').flush(page([]));
-    http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('limit') === '4').flush(page([]));
+    http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('scope') === 'friends' && r.params.get('limit') === '4').flush(page([]));
+    http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('media') === '1').flush(page([]));
 
     component.setScope('friends');
     feed(true).flush(page([]));

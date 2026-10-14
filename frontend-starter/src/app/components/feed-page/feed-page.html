@@ -67,6 +67,25 @@
       }
     </section>
 
+    <section class="card side-card" aria-labelledby="latest-title">
+      <div class="side-head">
+        <h2 id="latest-title">Derniers ajouts</h2>
+        <a routerLink="/search">Voir tout</a>
+      </div>
+      @for (p of latestFiles(); track p.id) {
+        <a class="side-item" [routerLink]="['/posts', p.id]">
+          <span class="kind-icon"><app-icon [name]="kindIcon(p)" /></span>
+          <span class="side-text">
+            <b>{{ p.media!.title }}</b>
+            <small>{{ kindLabels[p.media!.kind] }} · {{ p.owner?.name ?? 'Utilisateur supprimé' }}</small>
+          </span>
+          <small class="ago" [class.fresh]="isFresh(p)">{{ ago(p) }}</small>
+        </a>
+      } @empty {
+        <p class="hint">Aucun fichier publié pour l'instant.</p>
+      }
+    </section>
+
     <section class="card side-card" aria-labelledby="recent-title">
       <div class="side-head">
         <h2 id="recent-title">Escadrille · posts récents</h2>

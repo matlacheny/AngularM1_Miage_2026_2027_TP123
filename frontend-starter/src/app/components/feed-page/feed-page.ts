@@ -3,8 +3,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../shared/components/avatar/avatar';
 import { FlagBackdropComponent } from '../../shared/components/flag-backdrop/flag-backdrop';
+import { IconComponent } from '../../shared/components/icon/icon';
 import { VehicleSilhouetteComponent } from '../../shared/components/vehicle-silhouette/vehicle-silhouette';
-import { KIND_LABELS } from '../../shared/models/media.model';
+import { KIND_LABELS, MediaKind } from '../../shared/models/media.model';
 import { Post } from '../../shared/models/post.model';
 import { CATEGORY_LABELS, Vehicle } from '../../shared/models/vehicle.model';
 import { PostService } from '../../shared/services/post.service';
@@ -14,17 +15,22 @@ import { PostCardComponent } from '../post-card/post-card';
 import { PostComposerComponent } from '../post-composer/post-composer';
 
 export const FEED_PAGE_SIZE = 10;
+export const LATEST_FILES = 4;
+/** Icône de chaque type de fichier (bloc « Derniers ajouts »). */
+const KIND_ICONS: Readonly<Record<MediaKind, string>> = { audio: 'mic', image: 'image', video: 'video' };
 const DAY = 24 * 60 * 60 * 1000;
 
 /**
  * Accueil (maquette « Fil d'actualité ») : zone de publication, fil des
- * posts visibles, et colonne « Véhicules recommandés » / « Posts récents ».
+ * posts visibles, et colonne « Véhicules recommandés » / « Derniers ajouts » /
+ * « Posts récents ».
  */
 @Component({
   imports: [
     RouterLink,
     AvatarComponent,
     FlagBackdropComponent,
+    IconComponent,
     VehicleSilhouetteComponent,
     PostCardComponent,
     PostComposerComponent,
@@ -49,6 +55,8 @@ export class FeedPageComponent {
 
   readonly recommended = signal<Vehicle[]>([]);
   readonly recent = signal<Post[]>([]);
+  /** Derniers fichiers publiés et visibles par moi (tout le réseau, pas seulement l'escadrille). */
+  readonly latestFiles = signal<Post[]>([]);
 
   constructor() {
     this.loadPage(1);
@@ -57,6 +65,7 @@ export class FeedPageComponent {
       error: (error: HttpErrorResponse) => console.error('[FeedPage] Recommandations indisponibles', error.status),
     });
     this.loadRecent();
+    this.loadLatestFiles();
   }
 
   /** Page 1 : remplace le fil ; pages suivantes : ajoute à la suite (« plus anciennes »). */
@@ -86,6 +95,13 @@ export class FeedPageComponent {
     });
   }
 
+  private loadLatestFiles(): void {
+    this.postService.feed(1, LATEST_FILES, false, { media: true }).subscribe({
+      next: (page) => this.latestFiles.set(page.docs.filter((p) => p.media)),
+      error: (error: HttpErrorResponse) => console.error('[FeedPage] Derniers ajouts indisponibles', error.status),
+    });
+  }
+
   setScope(scope: 'all' | 'friends'): void {
     if (scope === this.scope()) return;
     this.scope.set(scope);
@@ -98,17 +114,23 @@ export class FeedPageComponent {
 
   onPublished(post: Post): void {
     this.posts.update((list) => [post, ...list]);
+    if (post.media) this.latestFiles.update((list) => [post, ...list].slice(0, LATEST_FILES));
   }
 
   onDeleted(id: string): void {
     this.posts.update((list) => list.filter((p) => p.id !== id));
     this.recent.update((list) => list.filter((p) => p.id !== id));
+    this.latestFiles.update((list) => list.filter((p) => p.id !== id));
   }
 
   /** « Photo · Dassault Rafale », « Son », « Texte ». */
   summary(post: Post): string {
     const kind = post.media ? KIND_LABELS[post.media.kind] : 'Texte';
     return post.vehicle ? `${kind} · ${post.vehicle.name}` : kind;
+  }
+
+  kindIcon(post: Post): string {
+    return post.media ? KIND_ICONS[post.media.kind] : 'image';
   }
 
   ago(post: Post): string {

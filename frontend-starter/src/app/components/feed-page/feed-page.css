@@ -30,6 +30,7 @@
 
 .thumb { position: relative; flex-shrink: 0; width: 78px; height: 56px; overflow: hidden; border-radius: 8px; background: var(--surface-2); }
 .thumb-silhouette { position: absolute; inset: 16% 14%; }
+.kind-icon { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 2.6rem; height: 2.6rem; color: var(--accent); background: var(--accent-soft); border-radius: 10px; --icon-size: 1.2rem; }
 .ring { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px rgba(232, 166, 42, 0.6); }
 .ago { color: var(--muted); }
 .ago.fresh { color: var(--accent); }

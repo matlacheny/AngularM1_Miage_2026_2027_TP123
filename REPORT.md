@@ -16,7 +16,7 @@ Chaque média peut être rattaché à une **fiche véhicule** (Rafale, Leclerc, 
 | 1 | Modèle `Media` multi-types (audio/image/vidéo), visibilité, règle d'accès `canAccess`, lecture en streaming (Range) | **Terminée** |
 | 2 | Fiches véhicules + enrichissement et validation via Wikipedia/Wikidata | **Terminée** |
 | 3 | Posts (fil d’actualité, J’aime, commentaires) + page profil | **Terminée** (sections 8 et 9) |
-| 4 | Recherche avec filtres + « derniers ajouts » | **En cours** (section 11 : recherche faite, bloc « derniers ajouts » du fil à faire) |
+| 4 | Recherche avec filtres + « derniers ajouts » | **Terminée** (section 11) |
 | 5 | Escadrille (amis) + partage ciblé révocable | **Terminée** (section 10) |
 | 6 | Fil d’activité de l’escadrille | **Terminée** (section 10) |
 | 7 | Lecteur WebAudio : forme d'onde, spectrogramme, vu-mètres | À faire |
@@ -593,6 +593,11 @@ Cette étape répond aux exigences « search files » et « fichiers récemment 
   2. **Publications avec fichier** : les posts trouvés, affichés comme dans le fil (J'aime, commentaires), filtrables par type (Tous / Sons / Photos / Vidéos), avec « Plus de résultats ».
 - Un post est trouvé par **le véhicule auquel il est rattaché** (son « tag » : le nom ou un alias de la fiche) **ou par le nom de son auteur**, sans tenir compte de la casse. Le texte du post et le titre du fichier ne sont pas cherchés : écrire « Rafale » dans un post sur un Mirage ne le fait pas apparaître dans les résultats « Rafale ».
 - **Sans texte**, la page affiche les **derniers fichiers publiés**.
+- **Bloc « Derniers ajouts »** dans la colonne de droite du fil, entre « Véhicules recommandés » et « Escadrille · posts récents » :
+  - les 4 derniers posts avec fichier visibles par moi, sur tout le réseau (pas seulement l'escadrille) ;
+  - pour chacun : icône du type, titre du fichier, « Photo · auteur », date courte (en ambre si moins de 24 h), lien vers le post ;
+  - « Voir tout » ouvre `/search` sans texte, c'est-à-dire la liste complète des derniers fichiers ;
+  - un fichier que je publie y apparaît aussitôt ; un post supprimé en disparaît.
 - La recherche est dans l'URL : le lien se partage et le bouton retour du navigateur fonctionne.
 
 ### Choix techniques
@@ -616,6 +621,7 @@ Cette étape répond aux exigences « search files » et « fichiers récemment 
 - La page lit `q` et `kind` dans l'URL (inputs liés par `withComponentInputBinding`).
 - La saisie met l'URL à jour après 300 ms de pause, en remplaçant l'entrée d'historique (pas une entrée par lettre).
 - Chaque recherche porte un numéro : une réponse arrivée après une recherche plus récente est ignorée.
+- « Derniers ajouts » réutilise la même requête (`/posts/feed?media=1&limit=4`) : mêmes droits, aucun endpoint de plus. L'index `{ visibility: 1, createdAt: -1 }` des posts sert ce tri.
 
 ### Vérification
 
@@ -645,12 +651,14 @@ Sur la base de démonstration, avec une instance du backend lancée à part (com
 - réponse d'une recherche remplacée ignorée ;
 - erreur du serveur affichée.
 
-Le test de la barre latérale vérifie maintenant qu'elle ouvre `/search`.
+**Frontend** (+3, `feed-page.spec.ts`) : bloc « Derniers ajouts » (requête `media=1`, `limit=4`, sans `scope` ; titre, « Vidéo · auteur », liens vers le post et vers `/search`), bloc vide, mise à jour après publication (un post sans fichier est ignoré) et suppression.
+
+Le test de la barre latérale vérifie maintenant qu'elle ouvre `/search`. Les tests du fil distinguent désormais ses quatre requêtes de départ.
 
 ## 12. Résultats actuels des tests
 
 | Suite | Commande | Résultat |
 |---|---|---|
 | Backend | `cd backend && npm test` | **106 tests, 106 réussis** |
-| Frontend | `cd frontend-starter && npm test` | **109 tests, 109 réussis** (21 fichiers) |
+| Frontend | `cd frontend-starter && npm test` | **112 tests, 112 réussis** (21 fichiers) |
 | Build | `cd frontend-starter && npx ng build` | OK, sans avertissement |
