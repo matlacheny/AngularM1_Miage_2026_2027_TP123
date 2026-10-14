@@ -33,7 +33,15 @@ export const VEHICLE_ROOTS = [
 export const CATEGORIES = VEHICLE_ROOTS.map((r) => r.category);
 
 /** Wikipédia ou Wikidata injoignable, lent ou qui limite nos requêtes. */
-export class WikiUnavailableError extends Error {}
+export class WikiUnavailableError extends Error {
+  /** `timeout` : pas de réponse dans le délai (et non un refus explicite comme 429). */
+  constructor(message, { timeout = false } = {}) {
+    super(message);
+    this.timeout = timeout;
+  }
+}
+
+const isTimeout = (error) => error?.name === "TimeoutError" || error?.name === "AbortError";
 
 /** Clé de comparaison : minuscules, sans accents ni espaces superflus. */
 export function normalizeName(value) {
@@ -54,13 +62,20 @@ async function getJson(url, fetchImpl, headers = {}) {
     });
   } catch (error) {
     console.error(`[wiki] Requête impossible vers ${new URL(url).host}`, error);
-    throw new WikiUnavailableError("Wikipédia est injoignable");
+    throw new WikiUnavailableError("Wikipédia est injoignable", { timeout: isTimeout(error) });
   }
   if (!response.ok) {
     console.warn(`[wiki] Réponse ${response.status} de ${new URL(url).host}`);
     throw new WikiUnavailableError(`Wikipédia a répondu ${response.status}`);
   }
-  return response.json();
+  // Le délai court aussi pendant la lecture du corps : une réponse trop longue
+  // (ou coupée) ne doit pas sortir en erreur brute.
+  try {
+    return await response.json();
+  } catch (error) {
+    console.error(`[wiki] Réponse illisible de ${new URL(url).host}`, error);
+    throw new WikiUnavailableError("Wikipédia est injoignable", { timeout: isTimeout(error) });
+  }
 }
 
 /** Étape 1 : 5 articles candidats, dans l'ordre de pertinence de Wikipédia. */
@@ -179,17 +194,52 @@ export async function classifyVehicles(qids, fetchImpl = fetch) {
 async function resolveVehicle(query, fetchImpl = fetch) {
   console.log(`[wiki] Résolution de "${query}"`);
   const candidates = await searchCandidates(query, fetchImpl);
-  const classes = await classifyVehicles(candidates.map((c) => c.wikidataId), fetchImpl);
-
-  const match = candidates.find((c) => classes.has(c.wikidataId));
-  if (!match) {
+  const found = await firstVehicle(candidates, fetchImpl);
+  if (!found) {
     console.log(`[wiki] Aucun véhicule parmi ${candidates.length} candidat(s) pour "${query}"`);
     return null;
   }
 
-  const { category, countries, origins } = classes.get(match.wikidataId);
-  console.log(`[wiki] "${query}" => ${match.title} (${match.wikidataId}, ${category})`);
-  return { ...match, name: match.title, category, countries: [...countries].sort(), origins };
+  const { match, info } = found;
+  console.log(`[wiki] "${query}" => ${match.title} (${match.wikidataId}, ${info.category})`);
+  return { ...match, name: match.title, category: info.category, countries: [...info.countries].sort(), origins: info.origins };
+}
+
+/** Requêtes Wikidata simultanées au plus (limite du service : 5 par adresse IP). */
+export const PARALLEL_CLASSIFICATIONS = 5;
+
+/**
+ * Premier candidat (dans l'ordre de pertinence) qui est un véhicule : { match, info }, ou null.
+ *
+ * Chaque candidat est classé par sa propre requête, par lots parallèles. Une
+ * requête groupée dépasserait le délai dès qu'un seul élément a une hiérarchie
+ * P279 immense (« VBMR-L Serval » parmi les candidats de « EBRC Jaguar »), et
+ * continuerait de consommer le quota de Wikidata, qui refuse ensuite (429).
+ * Un candidat trop lent est ignoré ; un refus explicite (429…) interrompt tout.
+ */
+async function firstVehicle(candidates, fetchImpl) {
+  let unanswered = 0;
+  for (let i = 0; i < candidates.length; i += PARALLEL_CLASSIFICATIONS) {
+    const batch = candidates.slice(i, i + PARALLEL_CLASSIFICATIONS);
+    const pending = batch.map((c) => classifyVehicles([c.wikidataId], fetchImpl));
+    pending.forEach((p) => p.catch(() => {})); // les échecs sont lus ci-dessous, dans l'ordre
+
+    // Dans l'ordre de pertinence : on répond dès que le premier véhicule est
+    // confirmé, sans attendre les candidats suivants, plus lents.
+    for (const [j, candidate] of batch.entries()) {
+      try {
+        const classes = await pending[j];
+        if (classes.has(candidate.wikidataId)) return { match: candidate, info: classes.get(candidate.wikidataId) };
+      } catch (error) {
+        if (!(error instanceof WikiUnavailableError && error.timeout)) throw error;
+        unanswered++;
+        console.warn(`[wiki] « ${candidate.title} » non classé (trop lent), ignoré`);
+      }
+    }
+  }
+  // Un candidat non classé était peut-être le véhicule : on ne conclut pas « non ».
+  if (unanswered) throw new WikiUnavailableError("Wikidata ne répond pas", { timeout: true });
+  return null;
 }
 
 // Objet mutable : les tests remplacent wikipedia.resolveVehicle par une

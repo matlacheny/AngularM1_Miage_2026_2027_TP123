@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { createApp } from "../src/app.js";
+import { Media } from "../src/models/Media.js";
 import { Post } from "../src/models/Post.js";
 import { User } from "../src/models/User.js";
 import { Vehicle } from "../src/models/Vehicle.js";
@@ -133,6 +134,9 @@ test("DELETE favori : $pull du véhicule", async (t) => {
 });
 
 test("GET /api/posts/feed?author=&kind= : posts d'un auteur, filtrés par type de média", async (t) => {
+  const AUDIO_ID = new mongoose.Types.ObjectId();
+  let kindFilter;
+  stub(t, Media, "distinct", async (field, filter) => ((kindFilter = filter), [AUDIO_ID]));
   let pipeline;
   stub(t, Post, "aggregatePaginate", async (aggregate, o) => {
     pipeline = aggregate.pipeline();
@@ -143,7 +147,8 @@ test("GET /api/posts/feed?author=&kind= : posts d'un auteur, filtrés par type d
   assert.equal(r.status, 200);
   assert.equal(String(pipeline[0].$match.ownerId), OTHER);
   assert.ok(pipeline[0].$match.$or, "les droits du lecteur restent appliqués");
-  assert.ok(pipeline.some((s) => s.$match?.["media.kind"] === "audio"));
+  assert.deepEqual(pipeline[0].$match.mediaId, { $in: [AUDIO_ID] }, "le type est filtré dans le premier $match");
+  assert.deepEqual(kindFilter, { kind: "audio" });
 
   assert.equal((await fetch(`${base}/api/posts/feed?kind=pdf`, { headers: bearer() })).status, 400);
   assert.equal((await fetch(`${base}/api/posts/feed?author=x`, { headers: bearer() })).status, 400);

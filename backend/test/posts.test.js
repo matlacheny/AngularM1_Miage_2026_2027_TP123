@@ -334,6 +334,8 @@ test("GET /api/posts/feed : sans q, aucune condition de recherche", async (t) =>
 
 test("GET /api/posts/feed?q= : combinable avec kind, catégorie inconnue refusée", async (t) => {
   stubSearch(t);
+  const AUDIO_ID = new mongoose.Types.ObjectId();
+  stub(t, Media, "distinct", async () => [AUDIO_ID]);
   let pipeline;
   stub(t, Post, "aggregatePaginate", async (aggregate, o) => {
     pipeline = aggregate.pipeline();
@@ -342,6 +344,6 @@ test("GET /api/posts/feed?q= : combinable avec kind, catégorie inconnue refusé
 
   await fetch(`${base}/api/posts/feed?q=leclerc&kind=audio`, { headers: bearer() });
   assert.ok(pipeline[0].$match.$and);
-  assert.ok(pipeline.some((stage) => stage.$match?.["media.kind"] === "audio"));
+  assert.deepEqual(pipeline[0].$match.mediaId, { $in: [AUDIO_ID] }, "le type est filtré dans le premier $match");
   assert.equal((await fetch(`${base}/api/posts/feed?q=leclerc&kind=pdf`, { headers: bearer() })).status, 400);
 });

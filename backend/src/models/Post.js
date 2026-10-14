@@ -32,9 +32,12 @@ schema.plugin(aggregatePaginate);
 /**
  * Pipeline commun du fil et d'un post seul : auteur (nom), média, véhicule,
  * nombre de J'aime et « est-ce que j'aime ». La liste des J'aime ne sort jamais.
- * `mediaKind` ne garde que les posts dont le média est de ce type.
+ *
+ * Tout filtre doit être dans `match` : aggregatePaginate (1.1.5) déplace
+ * chaque $match avant les $lookup, donc un filtre sur un champ joint (ex.
+ * "media.kind") ne trouverait plus rien.
  */
-export function publicPostPipeline(match, viewerId, mediaKind = null) {
+export function publicPostPipeline(match, viewerId) {
   const project = (fields) => [{ $project: { _id: 0, id: { $toString: "$_id" }, ...fields } }];
   return [
     { $match: match },
@@ -69,8 +72,6 @@ export function publicPostPipeline(match, viewerId, mediaKind = null) {
         likedByMe: { $in: [viewerId, "$likes"] },
       },
     },
-    // Filtre par type de média (onglets Sons / Photos / Vidéos du profil).
-    ...(mediaKind ? [{ $match: { "media.kind": mediaKind } }] : []),
     { $project: { _id: 0, __v: 0, likes: 0, sharedWith: 0, mediaId: 0, vehicleId: 0, updatedAt: 0 } },
   ];
 }

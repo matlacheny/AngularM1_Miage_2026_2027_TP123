@@ -151,6 +151,75 @@ test("resolveVehicle : WikiUnavailableError si le réseau échoue ou si Wikimedi
   await assert.rejects(wikipedia.resolveVehicle("Rafale", fakeFetch({ status: 429 }).impl), WikiUnavailableError);
 });
 
+/**
+ * Wikidata simulé : la requête groupée dépasse le délai ; candidat par
+ * candidat, `slow` dépasse aussi le délai et `vehicles` sont des chars.
+ */
+function slowWikidata({ slow = [], vehicles = [], always = false }) {
+  const calls = [];
+  const timeout = () => Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" });
+  const impl = async (url) => {
+    calls.push(String(url));
+    if (String(url).includes("wikipedia.org")) return { ok: true, status: 200, json: async () => LECLERC_SEARCH };
+    const qids = [...decodeURIComponent(String(url)).matchAll(/wd:(Q\d+)/g)].map((m) => m[1]).filter((q) => !q.startsWith("Q34486") && !["Q11436", "Q12876", "Q1184840"].includes(q));
+    if (always || qids.length > 1 || slow.includes(qids[0])) throw timeout();
+    return { ok: true, status: 200, json: async () => sparql(vehicles.filter((q) => qids.includes(q)).map((q) => [q, "tank", "France"])) };
+  };
+  return { impl, calls: () => calls.filter((u) => u.includes("sparql")).length };
+}
+
+test("resolveVehicle : chaque candidat classé seul, le candidat trop lent est ignoré", async () => {
+  // Candidats dans l'ordre : E.Leclerc (lent), le général, puis le char.
+  const wikidata = slowWikidata({ slow: ["Q1273376"], vehicles: ["Q242398"] });
+  const vehicle = await wikipedia.resolveVehicle("Leclerc", wikidata.impl);
+
+  assert.equal(vehicle.name, "Char Leclerc");
+  assert.equal(vehicle.category, "tank");
+  assert.equal(wikidata.calls(), 3, "une requête par candidat, aucune requête groupée");
+});
+
+test("resolveVehicle : au plus 5 requêtes Wikidata simultanées, ordre de pertinence respecté", async () => {
+  const pages = Array.from({ length: 7 }, (_, i) => ({ index: i, title: `C${i}`, pageprops: { wikibase_item: `Q${100 + i}` } }));
+  let running = 0, peak = 0;
+  const impl = async (url) => {
+    if (String(url).includes("wikipedia.org")) return { ok: true, status: 200, json: async () => ({ query: { pages } }) };
+    running++, (peak = Math.max(peak, running));
+    await new Promise((r) => setTimeout(r, 5));
+    running--;
+    const qid = new URL(url).searchParams.get("query").match(/VALUES \?item \{ wd:(Q\d+) \}/)[1];
+    // C1 et C6 sont des véhicules : C1 l'emporte, il est plus pertinent.
+    return { ok: true, status: 200, json: async () => sparql(["Q101", "Q106"].includes(qid) ? [[qid, "aircraft", "France"]] : []) };
+  };
+  const vehicle = await wikipedia.resolveVehicle("x", impl);
+  assert.equal(vehicle.name, "C1");
+  assert.ok(peak <= 5, `au plus 5 en parallèle (${peak})`);
+});
+
+test("resolveVehicle : candidats un par un sans véhicule → null ; aucune réponse → WikiUnavailableError", async () => {
+  assert.equal(await wikipedia.resolveVehicle("Leclerc", slowWikidata({ vehicles: [] }).impl), null);
+  const error = await wikipedia.resolveVehicle("Leclerc", slowWikidata({ always: true }).impl).catch((e) => e);
+  assert.ok(error instanceof WikiUnavailableError && error.timeout);
+});
+
+test("resolveVehicle : un candidat non classé et aucun véhicule trouvé → indisponible, pas « non »", async () => {
+  // Le char est le candidat trop lent : conclure « aucun véhicule » serait faux.
+  const error = await wikipedia.resolveVehicle("Leclerc", slowWikidata({ slow: ["Q242398"], vehicles: ["Q242398"] }).impl).catch((e) => e);
+  assert.ok(error instanceof WikiUnavailableError, "503 Réessayez, et non 422 Ce n'est pas un véhicule");
+});
+
+test("resolveVehicle : un refus explicite (429) n'est pas retenté candidat par candidat", async () => {
+  const { impl, calls } = fakeFetch({ search: LECLERC_SEARCH, status: 200 });
+  const limited = async (url, options) => (String(url).includes("sparql") ? { ok: false, status: 429, json: async () => ({}) } : impl(url, options));
+  await assert.rejects(wikipedia.resolveVehicle("Leclerc", limited), WikiUnavailableError);
+  assert.equal(calls.length, 1, "seule la recherche Wikipédia passe par le faux fetch");
+});
+
+test("getJson : une réponse coupée pendant la lecture devient WikiUnavailableError", async () => {
+  const cut = async () => ({ ok: true, status: 200, json: async () => { throw Object.assign(new Error("aborted"), { name: "TimeoutError" }); } });
+  const error = await searchCandidates("Rafale", cut).catch((e) => e);
+  assert.ok(error instanceof WikiUnavailableError && error.timeout);
+});
+
 // ---------------------------------------------------------------------------
 // accessFilter (MongoDB) doit dire la même chose que canAccess (JavaScript)
 // ---------------------------------------------------------------------------

@@ -11,16 +11,22 @@ import { Comment } from "../src/models/Comment.js";
 import { Friendship, pairKey } from "../src/models/Friendship.js";
 import { UPLOADS } from "../src/uploads.js";
 import { WikiUnavailableError, normalizeName, wikipedia } from "../src/wikipedia.js";
+import { FREESOUND_SOUNDS, SOUNDS } from "./curated-media.js";
+import { freesoundFiles } from "./freesound.js";
 
 /*
  * Données de démonstration RÉELLES :
  *  - ~100 fiches véhicules résolues via Wikipédia/Wikidata (résumé, photo, pays, drapeau),
- *    exactement comme une création depuis l'application ;
- *  - photos, vidéos et sons réels de Wikimedia Commons (licences libres), téléchargés
- *    dans data/uploads et publiés en posts avec auteur et licence cités ;
+ *    avec les mêmes règles qu'une création depuis l'application ;
+ *  - photos et vidéos réelles de Wikimedia Commons (licences libres), choisies par la
+ *    propriété Wikidata « dépeint » (P180) de chaque fiche, et sons vérifiés à la main
+ *    (curated-media.js : Commons, et Freesound si FREESOUND_API_KEY est défini),
+ *    téléchargés dans data/uploads et publiés en posts avec auteur
+ *    et licence cités ;
  *  - 20 comptes, escadrilles, J'aime et commentaires, dates réalistes sur 6 mois.
  *
  * Usage : cd backend && npm run seed      (mot de passe des comptes : Afterburner2026!)
+ * Puis, pour les bandes son des vidéos (ffmpeg requis) : FFMPEG_PATH=… npm run repair-media
  * Relançable : supprime d'abord ses propres données (comptes @afterburner.seed, leurs
  * médias et fichiers, fiches « seed »). Les réponses Wikimedia sont mises en cache dans
  * data/uploads/.seed-cache.json pour ne pas solliciter les API à chaque exécution.
@@ -34,7 +40,7 @@ const CACHE_FILE = path.join(UPLOADS, ".seed-cache.json");
 const DAY = 24 * 60 * 60 * 1000;
 const TARGET_POSTS = 200;
 const MAX_VIDEOS = 30;
-const MAX_AUDIO = 30;
+const MAX_AUDIO = 40;
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
 
 // Pseudo-aléatoire déterministe.
@@ -63,16 +69,12 @@ const VEHICLES = [
   "M4 Sherman", "M60 Patton", "M26 Pershing", "M2 Bradley", "Stryker véhicule blindé", "M113 véhicule blindé",
   "Eurofighter Typhoon", "Supermarine Spitfire", "Hawker Hurricane", "Avro Lancaster", "Hawker Siddeley Harrier",
   "BAE Systems Hawk", "Avro Vulcan", "de Havilland DH.98 Mosquito", "Panavia Tornado", "Westland Lynx",
-  "AgustaWestland AW101", "Challenger 2", "Centurion char", "Chieftain char", "Churchill char",
+  "AgustaWestland AW101", "Challenger 2", "Centurion (char)", "Chieftain char", "Churchill char",
   "Messerschmitt Bf 109", "Focke-Wulf Fw 190", "Messerschmitt Me 262", "Junkers Ju 87", "Leopard 1", "Leopard 2",
   "Tigre char Tiger I", "Panther char", "Boxer véhicule blindé", "Marder véhicule de combat d'infanterie",
   "Mikoyan-Gourevitch MiG-21", "Mikoyan-Gourevitch MiG-29", "Soukhoï Su-27", "Soukhoï Su-57", "Mil Mi-24", "T-34", "T-72",
   "T-90", "BMP-1", "B1 Centauro", "Saab JAS 39 Gripen", "Merkava", "Mitsubishi A6M Zero", "Saab 35 Draken",
 ];
-
-// Recherches de sons plus générales (les sons d'un véhicule précis sont rares sur Commons).
-const AUDIO_QUERIES = ["Work With Sounds aircraft", "jet aircraft flyby", "military jet takeoff", "helicopter flyby",
-  "tank engine", "propeller aircraft engine", "Saab Draken", "afterburner jet"];
 
 const USERS = [
   ["Lucas Bernard", "Salon-de-Provence", "Photographe amateur, je suis les meetings aériens du sud de la France."],
@@ -132,11 +134,12 @@ async function politely(fn, label) {
   return null;
 }
 
-async function commonsSearch(query, limit) {
+/** Fichiers Commons d'une recherche (`query`), ou d'une liste de titres (`titles`). */
+async function commonsSearch(query, limit, titles = null) {
   const params = new URLSearchParams({
-    action: "query", format: "json", formatversion: "2", generator: "search", gsrnamespace: "6",
-    gsrlimit: String(limit), gsrsearch: query, prop: "imageinfo",
+    action: "query", format: "json", formatversion: "2", prop: "imageinfo",
     iiprop: "url|size|mime|mediatype|extmetadata", iiextmetadatafilter: "Artist|LicenseShortName", iiurlwidth: "1280",
+    ...(titles ? { titles: titles.join("|") } : { generator: "search", gsrnamespace: "6", gsrlimit: String(limit), gsrsearch: query }),
   });
   const response = await fetch(`${COMMONS_API}?${params}`, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`Commons ${response.status}`);
@@ -170,7 +173,7 @@ function toDownload(file, kind) {
     return { ...file, kind, src: file.url, mime: "video/webm", ext: "webm" };
   }
   if (kind === "audio" && file.mediatype === "AUDIO" && AUDIO_MIME[file.mime] && file.size <= 10 * 1024 * 1024 && !/^File:LL-/.test(file.title)) {
-    const ext = file.url.split(".").pop().toLowerCase();
+    const ext = file.url.split("?")[0].split(".").pop().toLowerCase();
     return { ...file, kind, src: file.url, mime: AUDIO_MIME[file.mime], ext };
   }
   return null;
@@ -217,6 +220,8 @@ async function seedVehicles(now, creatorId) {
   const vehicles = [];
   const seen = new Set();
   for (const [i, query] of VEHICLES.entries()) {
+    // Un échec mis en cache (ex. Wikidata trop lent) est retenté à l'exécution suivante.
+    if (cache[`vehicle:${query}`] === false) delete cache[`vehicle:${query}`];
     const resolved = await cached(`vehicle:${query}`, () =>
       politely(async () => {
         try {
@@ -246,22 +251,26 @@ async function seedVehicles(now, creatorId) {
       await Vehicle.collection.insertOne(doc);
       vehicle = doc;
     }
-    vehicles.push({ _id: vehicle._id, name: vehicle.name ?? resolved.name, category: resolved.category });
+    vehicles.push({ _id: vehicle._id, name: vehicle.name ?? resolved.name, category: resolved.category, wikidataId: resolved.wikidataId });
     log(`(${i + 1}/${VEHICLES.length}) ${resolved.name} — ${resolved.category}, ${resolved.countries.join(", ") || "pays inconnu"}`);
   }
   return vehicles;
 }
 
-/** Médias Commons : photos et vidéos par véhicule, sons par recherches générales. */
+/**
+ * Médias Commons : photos et vidéos qui « dépeignent » (P180) chaque véhicule, et sons
+ * vérifiés. Une recherche texte par nom renverrait aussi les homonymes (un lynx pour le
+ * Westland Lynx, un phacochère pour l'A-10 « Warthog »…).
+ */
 async function collectMedia(vehicles) {
   const images = [];
   const videos = [];
   const audio = [];
   for (const v of vehicles) {
-    const files = await cached(`commons:${v.name}`, () =>
+    const files = await cached(`commons:P180:${v.wikidataId}`, () =>
       politely(async () => [
-        ...(await commonsSearch(`${v.name} filetype:bitmap`, 4)),
-        ...(await commonsSearch(`${v.name} filetype:video`, 2)),
+        ...(await commonsSearch(`haswbstatement:P180=${v.wikidataId} filetype:bitmap`, 4)),
+        ...(await commonsSearch(`haswbstatement:P180=${v.wikidataId} filetype:video`, 2)),
       ], `Commons « ${v.name} »`),
     );
     for (const f of files ?? []) {
@@ -271,16 +280,16 @@ async function collectMedia(vehicles) {
       if (vid && videos.length < MAX_VIDEOS && !videos.some((x) => x.title === f.title)) videos.push({ ...vid, vehicle: v });
     }
   }
-  for (const query of AUDIO_QUERIES) {
-    const files = await cached(`audio:${query}`, () => politely(() => commonsSearch(`${query} filetype:audio`, 10), `Commons son « ${query} »`));
-    for (const f of files ?? []) {
-      const snd = toDownload(f, "audio");
-      if (!snd || audio.length >= MAX_AUDIO || audio.some((x) => x.title === f.title)) continue;
-      // Rattaché à une fiche seulement si le nom du fichier cite ce véhicule.
-      const lower = f.title.toLowerCase();
-      const vehicle = vehicles.find((x) => x.name.split(/\s+/).filter((w) => w.length > 3).some((w) => lower.includes(w.toLowerCase()))) ?? null;
-      audio.push({ ...snd, vehicle });
-    }
+  const sounds = await cached("audio:curated", () => politely(() => commonsSearch(null, 0, SOUNDS.map((s) => s.file)), "Commons sons"));
+  for (const f of sounds ?? []) {
+    const curated = SOUNDS.find((s) => s.file === f.title);
+    const vehicle = vehicles.find((v) => v.name === curated?.vehicle);
+    const snd = toDownload(f, "audio");
+    if (snd && vehicle && audio.length < MAX_AUDIO) audio.push({ ...snd, vehicle, displayTitle: curated.title });
+  }
+  for (const f of await freesoundFiles(FREESOUND_SOUNDS)) {
+    const vehicle = vehicles.find((v) => v.name === f.vehicle);
+    if (vehicle && audio.length < MAX_AUDIO) audio.push({ ...f, vehicle, title: f.originalName, displayTitle: f.title, source: "Freesound" });
   }
   // Photos réparties entre les véhicules (tour par tour) pour compléter jusqu'à 200 posts.
   const byVehicle = new Map();
@@ -292,7 +301,7 @@ async function collectMedia(vehicles) {
     if (!added) break;
   }
   const chosen = [...videos, ...audio, ...spread].slice(0, TARGET_POSTS);
-  log(`Commons : ${videos.length} vidéo(s), ${audio.length} son(s), ${images.length} photo(s) trouvées ; ${chosen.length} retenues`);
+  log(`Commons et Freesound : ${videos.length} vidéo(s), ${audio.length} son(s), ${images.length} photo(s) trouvées ; ${chosen.length} retenues`);
   return chosen;
 }
 
@@ -359,7 +368,7 @@ async function main() {
     const createdAt = realisticDate(now);
     const visibility = rand() < 0.8 ? "public" : rand() < 0.75 ? "friends" : "private";
     const mediaId = new mongoose.Types.ObjectId();
-    const title = cleanTitle(item.title);
+    const title = item.displayTitle ?? cleanTitle(item.title);
     await Media.collection.insertOne({
       _id: mediaId, ownerId: owner, kind: item.kind, title, originalName: item.title.replace(/^File:/, ""),
       storedName: file.storedName, mimeType: item.mime, size: file.size, visibility, sharedWith: [],
@@ -367,7 +376,7 @@ async function main() {
     });
 
     const subject = item.vehicle?.name ?? title;
-    const credit = `Source : Wikimedia Commons — ${item.artist} (${item.license}) ${item.pageUrl ?? ""}`.trim();
+    const credit = `Source : ${item.source ?? "Wikimedia Commons"} — ${item.artist} (${item.license}) ${item.pageUrl ?? ""}`.trim();
     const postId = new mongoose.Types.ObjectId();
     const commentCount = visibility === "private" ? 0 : between(0, 5);
     for (let c = 0; c < commentCount; c++) {

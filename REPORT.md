@@ -576,11 +576,48 @@ Les tests existants ont été adaptés aux nouvelles requêtes (escadrille au d�
 
 `cd backend && npm run seed` (`scripts/seed.js`) remplit la base pour les démonstrations :
 - 20 comptes (mot de passe commun `Afterburner2026!`, emails en `@afterburner.seed`), avec ville, biographie et véhicules préférés ;
-- 100 fiches véhicules avec pays et drapeaux (sans dupliquer les fiches existantes) ;
+- environ 70 fiches véhicules résolues par Wikipédia et Wikidata (résumé, photo, pays, drapeaux), sans dupliquer les fiches existantes ;
 - environ 80 liens d'escadrille, dont 5 amis et une invitation en attente pour le compte démo ;
-- 200 posts répartis sur 6 mois (plus nombreux récemment, publiés entre 8 h et 21 h ; 80 % publics, le reste Escadrille ou Privé), avec J'aime et commentaires datés après le post.
+- des posts répartis sur 6 mois (plus nombreux récemment, publiés entre 8 h et 21 h ; 80 % publics), avec J'aime et commentaires datés après le post ;
+- de **vrais fichiers sous licence libre**, cités dans chaque post (auteur, licence, lien).
 
-Les posts sont textuels : le script ne fabrique pas de fichiers audio ou vidéo. Les fiches de démonstration n'interrogent pas Wikipédia (limitation de débit) : elles n'ont ni photo ni résumé réel. Le script est déterministe et relançable ; il supprime d'abord ses propres données, sans toucher aux comptes ni aux fiches existants.
+État actuel de la base : **175 médias** (photos, vidéos et 45 sons), **21 véhicules avec au moins un son**.
+
+### Choix des médias
+
+**Photos et vidéos : propriété Wikidata « dépeint » (P180).** La première version cherchait sur Wikimedia Commons par nom de véhicule. Une vérification visuelle des 122 photos et de la description des 9 vidéos a trouvé 15 médias faux, presque tous des homonymes : un caracal (félin) pour l'hélicoptère Caracal, des lynx pour le Westland Lynx, un léopard pour le Leopard 2, un phacochère (« warthog ») pour l'A-10, un crâne de crocodile (« Krokodil ») pour le Mi-24, la révolte des Boxers pour le Boxer, une gare pour le Stryker, des cartes d'ouragans pour le Breguet Atlantic… Le script cherche désormais les fichiers que Commons déclare « dépeindre » la fiche (`haswbstatement:P180=<wikidataId>`).
+
+**Sons : listes vérifiées à la main** (`scripts/curated-media.js`). Les sons identifiés par véhicule sont rares ; chaque son retenu a été vérifié par son titre et sa description :
+- Wikimedia Commons (12) : projets « Work With Sounds » et « Beeld en Geluid » (Draken, Sherman, Centurion…) ;
+- Freesound (25), licences CC0 et CC BY uniquement, avec la clé `FREESOUND_API_KEY` de `backend/.env` ;
+- bandes son de 8 vidéos de meetings et de défilés Commons, extraites avec ffmpeg ; une piste muette est refusée (volume moyen sous −55 dB).
+
+Écartés : homonymes, sons extraits de vidéos YouTube par un tiers, enregistrements mêlant plusieurs appareils, maquettes, montages promotionnels en musique, revendications de guerre invérifiables. Les autres véhicules n'ont pas d'enregistrement libre identifié.
+
+**Correction d'une base existante.** `npm run repair-media` (`scripts/repair-media.js`) supprime les médias faux et leurs posts, crée les fiches manquantes (EBRC Jaguar, Centurion), rattache la photo du Jaguar à la bonne fiche et ajoute les photos et les sons vérifiés. Il est relançable : un média déjà présent n'est pas réimporté. Les bandes son des vidéos demandent `FFMPEG_PATH` (ou ffmpeg dans le PATH).
+
+### Bug corrigé : création de fiche « EBRC Jaguar »
+
+L'application classait les 10 candidats Wikipédia en une seule requête SPARQL, coupée à 8 s. Pour « EBRC Jaguar », un seul candidat (« VBMR-L Serval », dont la hiérarchie de classes `P279` est immense) suffisait à dépasser ce délai : la création échouait. Pire, la requête continuait de tourner chez Wikidata et consommait notre quota, si bien que la requête suivante était refusée (429).
+
+Correctif (`src/wikipedia.js`) :
+- chaque candidat est classé par sa propre requête, par lots de 5 en parallèle (limite de Wikidata par adresse IP) ;
+- la réponse arrive dès que le premier véhicule (dans l'ordre de pertinence) est confirmé, sans attendre les candidats plus lents ;
+- un candidat trop lent est ignoré ; mais si aucun véhicule n'est trouvé alors qu'un candidat n'a pas répondu, la réponse est « Wikipédia indisponible, réessayez » (503) et non « ce n'est pas un véhicule » (422), car ce candidat était peut-être le bon ;
+- un refus explicite (429, 502…) interrompt la recherche au lieu d'être retenté ;
+- une réponse coupée pendant la lecture devient aussi une erreur « indisponible », au lieu d'une erreur brute.
+
+Une hiérarchie bornée à quelques niveaux a été essayée : plus lente sur certains éléments et elle manquait le Rafale, elle a été abandonnée.
+
+Mesures réelles : « EBRC Jaguar » → *Engin blindé de reconnaissance et de combat* en 1,4 s (échec avant) ; « Rafale » 1,0 s ; « Leclerc » 4,9 s. Les scripts de démonstration utilisent de nouveau ce résolveur.
+
+Tests (+6, `test/vehicles.test.js`) : candidat lent ignoré, une requête par candidat ; au plus 5 requêtes simultanées et ordre de pertinence respecté ; aucun véhicule → `null` ; aucune réponse → indisponible ; candidat non classé sans véhicule trouvé → indisponible ; 429 non retenté ; réponse coupée → indisponible.
+
+### Bug corrigé : filtre par type de média
+
+Les onglets Sons / Photos / Vidéos de la page profil étaient toujours vides. Le module `mongoose-aggregate-paginate-v2` (1.1.5) déplace chaque `$match` avant les `$lookup` : le filtre `{ "media.kind": … }`, placé après la jointure du média, ne trouvait donc plus rien. Le type est maintenant converti en liste d'identifiants de médias dans le premier `$match` (`routes/posts.js`), comme la recherche. Les tests vérifient que le filtre est bien dans ce premier `$match`.
+
+**Tests** (+10, `test/curated-media.test.js`) : listes vérifiées cohérentes (titres complets, pas de doublon, aucun média de la liste des médias faux, formats audio acceptés) ; licences Freesound (CC0 et CC BY acceptées, NC refusée) ; pas d'appel sans clé ; aperçu OGG et crédit ; lecture du volume ffmpeg ; vidéos sources valides.
 
 ## 11. Étape 4 — Recherche
 
@@ -659,6 +696,6 @@ Le test de la barre latérale vérifie maintenant qu'elle ouvre `/search`. Les t
 
 | Suite | Commande | Résultat |
 |---|---|---|
-| Backend | `cd backend && npm test` | **106 tests, 106 réussis** |
+| Backend | `cd backend && npm test` | **122 tests, 122 réussis** |
 | Frontend | `cd frontend-starter && npm test` | **112 tests, 112 réussis** (21 fichiers) |
 | Build | `cd frontend-starter && npx ng build` | OK, sans avertissement |

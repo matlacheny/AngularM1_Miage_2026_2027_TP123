@@ -92,11 +92,13 @@ export function createPostsRouter() {
       const kind = typeof req.query.kind === "string" ? req.query.kind : "";
       if (kind && !MEDIA_KINDS.includes(kind)) return res.status(400).json({ message: "Catégorie inconnue" });
       if (req.query.media === "1") match.mediaId = { $ne: null };
+      // Type de média (onglets du profil, filtres de la recherche) : en tête du pipeline.
+      if (kind) match.mediaId = { $in: await Media.distinct("_id", { kind }) };
       const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
       // $and : les droits occupent déjà la clé $or du filtre.
       if (q) match.$and = [await searchCondition(q)];
 
-      const pipeline = publicPostPipeline(match, viewer, kind || null);
+      const pipeline = publicPostPipeline(match, viewer);
       const result = await Post.aggregatePaginate(Post.aggregate(pipeline), { page, limit });
       console.log(`[posts] Fil : ${result.docs.length} post(s) pour ${req.auth.sub}${q ? `, recherche « ${q} »` : ""}`);
       res.json({ ...result, docs: result.docs.map((post) => withMediaUrl(post, req.auth.sub)) });

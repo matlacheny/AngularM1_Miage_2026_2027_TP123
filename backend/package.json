@@ -7,7 +7,8 @@
         "start:local": "node src/server.js",
         "test": "node --test",
         "backfill:origins": "node --env-file=.env scripts/backfill-origins.js",
-        "seed": "node --env-file=.env scripts/seed.js"
+        "seed": "node --env-file=.env scripts/seed.js",
+        "repair-media": "node --env-file=.env scripts/repair-media.js"
     },
     "dependencies": {
         "bcryptjs": "^3.0.2",
