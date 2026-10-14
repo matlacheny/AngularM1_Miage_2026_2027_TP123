@@ -6,6 +6,7 @@ import { LoginPageComponent } from './components/login-page/login-page';
 import { PostPageComponent } from './components/post-page/post-page';
 import { ProfilePageComponent } from './components/profile-page/profile-page';
 import { RegisterPageComponent } from './components/register-page/register-page';
+import { SearchPageComponent } from './components/search-page/search-page';
 import { SquadronPageComponent } from './components/squadron-page/squadron-page';
 import { VehicleCreatePageComponent } from './components/vehicle-create-page/vehicle-create-page';
 import { VehiclePageComponent } from './components/vehicle-page/vehicle-page';
@@ -21,6 +22,7 @@ export const routes: Routes = [
   { path: 'feed', component: FeedPageComponent, canActivate: [authGuard] },
   { path: 'posts/:id', component: PostPageComponent, canActivate: [authGuard] },
   { path: 'hangar', component: HangarPageComponent, canActivate: [authGuard] },
+  { path: 'search', component: SearchPageComponent, canActivate: [authGuard] },
   { path: 'vehicles', component: VehiclesPageComponent, canActivate: [authGuard] },
   // Avant vehicles/:id, sinon « new » serait pris pour un identifiant.
   { path: 'vehicles/new', component: VehicleCreatePageComponent, canActivate: [authGuard] },

@@ -50,7 +50,7 @@ describe('AppComponent', () => {
     expect(sidebar.querySelector('.user-card b')?.textContent).toContain('Matteo Lacheny');
   });
 
-  it('la recherche de la barre latérale ouvre le catalogue filtré', () => {
+  it('la recherche de la barre latérale ouvre la page de recherche', () => {
     TestBed.inject(AuthService).token.set('jwt');
     const fixture = create();
     http.expectOne('/api/users/me').flush({ id: 'u1', name: 'M', email: 'm@example.com', createdAt: '' });
@@ -58,7 +58,7 @@ describe('AppComponent', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     fixture.componentInstance.search.setValue('  Rafale ');
-    fixture.componentInstance.searchVehicles();
-    expect(navigate).toHaveBeenCalledWith(['/vehicles'], { queryParams: { q: 'Rafale' } });
+    fixture.componentInstance.searchAll();
+    expect(navigate).toHaveBeenCalledWith(['/search'], { queryParams: { q: 'Rafale' } });
   });
 });

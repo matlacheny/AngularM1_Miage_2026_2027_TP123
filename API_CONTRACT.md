@@ -138,6 +138,7 @@ Erreurs :
 - `bio` : 300 caractères maximum ; `location` : 80 caractères maximum ; un champ qui n'est pas une chaîne → `400 Champ X invalide`.
 - 6 véhicules préférés au maximum. L'ajout est conditionnel et atomique. Ajouter une fiche déjà présente est sans effet (`200`).
 - `GET /posts/feed` accepte aussi `author=<id>` (posts d'un membre) et `kind=audio|image|video` (posts dont le média est de ce type). Les droits du lecteur s'appliquent toujours.
+- `GET /posts/feed` accepte aussi `q=<texte>` (recherche, TP4 étape 4) et `media=1` (posts avec un fichier uniquement). `q` (100 caractères au plus, insensible à la casse, cherché littéralement) trouve les posts rattachés à un véhicule dont le nom ou un alias le contient ; le texte du post n'est pas cherché. Les droits du lecteur s'appliquent toujours ; `q` se combine avec `kind`, `author` et `scope`.
 
 Erreurs :
 - `400` : `6 véhicules préférés au maximum`, `Champ X invalide`, `Auteur invalide`, `Catégorie inconnue`.

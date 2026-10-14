@@ -1,0 +1,85 @@
+<section class="search-page">
+  <p class="eyebrow">Recherche</p>
+  <h1 class="page-title">
+    @if (term()) {
+      Résultats pour « {{ term() }} »
+    } @else {
+      Derniers fichiers publiés
+    }
+  </h1>
+
+  <label class="search-field">
+    <app-icon name="search" />
+    <input [formControl]="search" type="search" placeholder="Rechercher un véhicule…" aria-label="Rechercher un véhicule" />
+  </label>
+
+  @if (term()) {
+    <section class="results" aria-labelledby="vehicles-title">
+      <div class="section-head">
+        <h2 id="vehicles-title">Fiches véhicules</h2>
+        @if (vehicleTotal() > vehicles().length) {
+          <a [routerLink]="['/vehicles']" [queryParams]="{ q: term() }">Voir les {{ vehicleTotal() }} fiches</a>
+        }
+      </div>
+      <div class="vehicle-grid">
+        @for (vehicle of vehicles(); track vehicle.id) {
+          <a class="vehicle-card" [routerLink]="['/vehicles', vehicle.id]">
+            <span class="visual">
+              <app-flag-backdrop [origins]="vehicle.origins" />
+              <app-vehicle-silhouette class="silhouette" [category]="vehicle.category" />
+            </span>
+            <span class="body">
+              <b>{{ vehicle.name }}</b>
+              <span class="meta">
+                <span class="pill pill-accent">{{ categoryLabels[vehicle.category] }}</span>
+                <small>{{ vehicle.countries.join(', ') }}</small>
+              </span>
+            </span>
+          </a>
+        } @empty {
+          <p class="hint empty-vehicles">
+            Aucune fiche pour « {{ term() }} ».
+            <a [routerLink]="['/vehicles/new']" [queryParams]="{ name: term() }">Créer la fiche</a>
+          </p>
+        }
+      </div>
+    </section>
+  }
+
+  <section class="results posts" aria-labelledby="posts-title">
+    <div class="section-head">
+      <h2 id="posts-title">Publications avec fichier</h2>
+      @if (!loading() || posts().length) {
+        <small class="hint">{{ postTotal() }} résultat{{ postTotal() > 1 ? 's' : '' }}</small>
+      }
+    </div>
+
+    <div class="chips" role="group" aria-label="Filtrer par type de fichier">
+      <button type="button" [class.active]="activeKind() === null" (click)="setKind(null)">Tous</button>
+      @for (k of kinds; track k) {
+        <button type="button" [class.active]="activeKind() === k" (click)="setKind(k)">{{ kindLabels[k] }}s</button>
+      }
+    </div>
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    @for (post of posts(); track post.id) {
+      <app-post-card [post]="post" (deleted)="onDeleted($event)" />
+    } @empty {
+      @if (!loading() && !error()) {
+        <div class="card empty">
+          <b>Aucune publication avec fichier{{ term() ? ' pour « ' + term() + ' »' : '' }}.</b>
+          <p class="hint">Les publications sont trouvées par le véhicule auquel elles sont rattachées.</p>
+        </div>
+      }
+    }
+
+    @if (loading()) {
+      <p class="hint center">Recherche…</p>
+    } @else if (hasMore()) {
+      <button type="button" class="secondary more" (click)="more()">Plus de résultats</button>
+    }
+  </section>
+</section>

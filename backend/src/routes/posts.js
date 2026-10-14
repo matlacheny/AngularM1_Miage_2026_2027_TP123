@@ -6,7 +6,8 @@ import { Comment, publicCommentPipeline } from "../models/Comment.js";
 import { Media } from "../models/Media.js";
 import { Post, publicPostPipeline } from "../models/Post.js";
 import { Vehicle } from "../models/Vehicle.js";
-import { loadFriendIds, streamUrlFor } from "./media.js";
+import { normalizeName } from "../wikipedia.js";
+import { escapeRegExp, loadFriendIds, streamUrlFor } from "./media.js";
 
 const MEDIA_KINDS = ["audio", "image", "video"];
 
@@ -25,6 +26,16 @@ export async function visibleTo(viewerId) {
   const viewer = new Types.ObjectId(viewerId);
   const friends = [...(await loadFriendIds(viewerId))].map((id) => new Types.ObjectId(id));
   return accessFilter(viewer, friends);
+}
+
+/**
+ * Recherche : identifiants des fiches véhicules dont le nom ou un alias
+ * contient `q`. Un post est trouvé par le véhicule auquel il est rattaché,
+ * pas par son texte. Les droits restent ceux du post (visibleTo).
+ */
+export function vehicleIdsMatching(q) {
+  const regex = { $regex: escapeRegExp(q), $options: "i" };
+  return Vehicle.distinct("_id", { $or: [{ name: regex }, { aliases: { $regex: escapeRegExp(normalizeName(q)) } }] });
 }
 
 /** Ajoute l'URL de lecture signée au média de chaque post. */
@@ -51,6 +62,9 @@ export function createPostsRouter() {
    * Fil : posts visibles par le lecteur, les plus récents d'abord.
    * `others=1` exclut ses propres posts ; `scope=friends` ne garde que ceux
    * de l'escadrille (colonne « Escadrille · posts récents », onglet du fil).
+   * Recherche : `q` garde les posts rattachés à un véhicule correspondant
+   * (voir vehicleIdsMatching) et `media=1` ne
+   * garde que les posts avec un fichier.
    */
   router.get("/feed", auth, async (req, res, next) => {
     try {
@@ -70,10 +84,13 @@ export function createPostsRouter() {
       }
       const kind = typeof req.query.kind === "string" ? req.query.kind : "";
       if (kind && !MEDIA_KINDS.includes(kind)) return res.status(400).json({ message: "Catégorie inconnue" });
+      if (req.query.media === "1") match.mediaId = { $ne: null };
+      const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
+      if (q) match.vehicleId = { $in: await vehicleIdsMatching(q) };
 
       const pipeline = publicPostPipeline(match, viewer, kind || null);
       const result = await Post.aggregatePaginate(Post.aggregate(pipeline), { page, limit });
-      console.log(`[posts] Fil : ${result.docs.length} post(s) pour ${req.auth.sub}`);
+      console.log(`[posts] Fil : ${result.docs.length} post(s) pour ${req.auth.sub}${q ? `, recherche « ${q} »` : ""}`);
       res.json({ ...result, docs: result.docs.map((post) => withMediaUrl(post, req.auth.sub)) });
     } catch (error) {
       console.error("[posts] Erreur de lecture du fil", error);

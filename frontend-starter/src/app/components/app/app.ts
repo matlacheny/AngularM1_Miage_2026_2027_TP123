@@ -42,10 +42,10 @@ export class AppComponent {
     });
   }
 
-  /** Recherche de la barre latérale : ouvre le catalogue filtré. */
-  searchVehicles(): void {
+  /** Recherche de la barre latérale : fiches véhicules et posts avec fichier. */
+  searchAll(): void {
     const q = this.search.value.trim();
-    void this.router.navigate(['/vehicles'], { queryParams: q ? { q } : {} });
+    void this.router.navigate(['/search'], { queryParams: q ? { q } : {} });
   }
 
   logout(): void {

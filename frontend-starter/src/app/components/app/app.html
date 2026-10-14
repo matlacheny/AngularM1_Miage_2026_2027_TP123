@@ -9,7 +9,7 @@
         </span>
       </a>
 
-      <form class="sidebar-search" role="search" (submit)="$event.preventDefault(); searchVehicles()">
+      <form class="sidebar-search" role="search" (submit)="$event.preventDefault(); searchAll()">
         <app-icon name="search" />
         <input [formControl]="search" type="search" placeholder="Rechercher un véhicule…" aria-label="Rechercher un véhicule" />
       </form>

@@ -16,7 +16,7 @@ Chaque média peut être rattaché à une **fiche véhicule** (Rafale, Leclerc, 
 | 1 | Modèle `Media` multi-types (audio/image/vidéo), visibilité, règle d'accès `canAccess`, lecture en streaming (Range) | **Terminée** |
 | 2 | Fiches véhicules + enrichissement et validation via Wikipedia/Wikidata | **Terminée** |
 | 3 | Posts (fil d’actualité, J’aime, commentaires) + page profil | **Terminée** (sections 8 et 9) |
-| 4 | Recherche avec filtres + « derniers ajouts » | À faire |
+| 4 | Recherche avec filtres + « derniers ajouts » | **En cours** (section 11 : recherche faite, bloc « derniers ajouts » du fil à faire) |
 | 5 | Escadrille (amis) + partage ciblé révocable | **Terminée** (section 10) |
 | 6 | Fil d’activité de l’escadrille | **Terminée** (section 10) |
 | 7 | Lecteur WebAudio : forme d'onde, spectrogramme, vu-mètres | À faire |
@@ -582,10 +582,74 @@ Les tests existants ont été adaptés aux nouvelles requêtes (escadrille au d�
 
 Les posts sont textuels : le script ne fabrique pas de fichiers audio ou vidéo. Les fiches de démonstration n'interrogent pas Wikipédia (limitation de débit) : elles n'ont ni photo ni résumé réel. Le script est déterministe et relançable ; il supprime d'abord ses propres données, sans toucher aux comptes ni aux fiches existants.
 
-## 11. Résultats actuels des tests
+## 11. Étape 4 — Recherche
+
+Cette étape répond aux exigences « search files » et « fichiers récemment ajoutés » du sujet.
+
+### Fonctionnalités
+
+- **Page « Recherche »** (`/search?q=&kind=`), ouverte par la barre de recherche de la colonne de gauche (qui ne cherchait jusqu'ici que les véhicules). Elle a deux parties :
+  1. **Fiches véhicules** : les 4 premières fiches correspondantes, avec « Voir les N fiches » vers le catalogue filtré, ou « Créer la fiche » si aucune ne correspond ;
+  2. **Publications avec fichier** : les posts trouvés, affichés comme dans le fil (J'aime, commentaires), filtrables par type (Tous / Sons / Photos / Vidéos), avec « Plus de résultats ».
+- Un post est trouvé par **le véhicule auquel il est rattaché** (son « tag ») : le nom ou un alias de la fiche contient le texte cherché, sans tenir compte de la casse. Le texte du post, le titre du fichier et l'auteur ne sont pas cherchés : écrire « Rafale » dans un post sur un Mirage ne le fait pas apparaître dans les résultats « Rafale ».
+- **Sans texte**, la page affiche les **derniers fichiers publiés**.
+- La recherche est dans l'URL : le lien se partage et le bouton retour du navigateur fonctionne.
+
+### Choix techniques
+
+**Pas de nouvelle route.** La recherche ajoute deux paramètres au fil existant : `GET /api/posts/feed?q=…&media=1`. Elle reprend donc sans modification :
+- les droits d'accès (`visibleTo` → `accessFilter`) : un post privé ou réservé à une autre escadrille n'apparaît jamais ;
+- la pagination, le format des posts et l'URL de lecture signée des fichiers ;
+- les filtres `kind`, `author` et `scope`, combinables avec `q`.
+
+**Recherche en deux temps** (`vehicleIdsMatching` dans `routes/posts.js`) :
+- d'abord les identifiants des fiches dont le nom ou un alias contient `q` (`distinct`), avec la même règle que le catalogue des véhicules ;
+- puis `vehicleId: { $in: … }` dans le `$match` des posts, qui reste en tête du pipeline, avant les `$lookup`.
+- Les deux parties de la page sont donc cohérentes : les posts affichés sont ceux des fiches trouvées (y compris au-delà des 4 fiches affichées).
+
+**Regex plutôt qu'index texte.** Un index `$text` MongoDB ne trouve que des mots entiers (« raf » ne trouverait pas « Rafale »). À ce volume, une regex insensible à la casse suffit. `q` est échappé (`.*` est cherché littéralement) et limité à 100 caractères.
+
+**Posts plutôt que fichiers bruts.** On cherche dans les publications, comme demandé pour l'affichage. Un fichier du hangar jamais publié n'apparaît donc pas : le hangar garde sa propre recherche par titre.
+
+**Frontend.**
+- La page lit `q` et `kind` dans l'URL (inputs liés par `withComponentInputBinding`).
+- La saisie met l'URL à jour après 300 ms de pause, en remplaçant l'entrée d'historique (pas une entrée par lettre).
+- Chaque recherche porte un numéro : une réponse arrivée après une recherche plus récente est ignorée.
+
+### Vérification
+
+Sur la base de démonstration, avec une instance du backend lancée à part (compte Lucas Bernard) :
+- sans texte : 118 posts avec fichier, les plus récents d'abord ;
+- « rafale » : 4 posts, tous rattachés au Dassault Rafale ;
+- « mirage » : 9 posts, rattachés aux Mirage F1, 2000, III et IV ;
+- « mi-24 » : 2 posts (alias du Mil Mi-24) ;
+- « Hugo » : aucun résultat (le nom de l'auteur n'est pas cherché) ;
+- « .* » : aucun résultat (regex échappée).
+
+### Tests
+
+**Backend** (+4, `test/posts.test.js`) :
+- `vehicleIdsMatching` : nom ou alias normalisé, regex échappée ;
+- `q` nettoyé, filtre sur le véhicule (et non le texte), `media=1` appliqué, droits du lecteur conservés ;
+- `q` vide : aucun filtre ni recherche de fiche ;
+- `q` combiné avec `kind`, 400 pour un type inconnu.
+
+**Frontend** (+8, `search-page.spec.ts`) :
+- les deux parties et leurs requêtes (`q`, `media=1`, 4 fiches) ;
+- sans texte : pas de fiches, « Derniers fichiers publiés » ;
+- aucun résultat : lien de création de fiche et message ;
+- type lu dans l'URL (type inconnu ignoré) et mis à jour par les boutons ;
+- saisie : une seule navigation après 300 ms, en remplaçant l'historique ;
+- « Plus de résultats » ;
+- réponse d'une recherche remplacée ignorée ;
+- erreur du serveur affichée.
+
+Le test de la barre latérale vérifie maintenant qu'elle ouvre `/search`.
+
+## 12. Résultats actuels des tests
 
 | Suite | Commande | Résultat |
 |---|---|---|
-| Backend | `cd backend && npm test` | **102 tests, 102 réussis** |
-| Frontend | `cd frontend-starter && npm test` | **101 tests, 101 réussis** (20 fichiers) |
+| Backend | `cd backend && npm test` | **106 tests, 106 réussis** |
+| Frontend | `cd frontend-starter && npm test` | **109 tests, 109 réussis** (21 fichiers) |
 | Build | `cd frontend-starter && npx ng build` | OK, sans avertissement |

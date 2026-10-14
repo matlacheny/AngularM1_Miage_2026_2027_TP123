@@ -8,7 +8,7 @@ import { Comment } from "../src/models/Comment.js";
 import { Media } from "../src/models/Media.js";
 import { Post, publicPostPipeline } from "../src/models/Post.js";
 import { Vehicle } from "../src/models/Vehicle.js";
-import { widest } from "../src/routes/posts.js";
+import { vehicleIdsMatching, widest } from "../src/routes/posts.js";
 
 /*
  * Tests du fil d'actualité (posts, J'aime, commentaires).
@@ -263,4 +263,78 @@ test("POST /api/posts/:id/comments : texte validé, compteur incrémenté, auteu
 test("GET /api/posts/:id/comments : 404 si le post est invisible", async (t) => {
   stub(t, Post, "exists", async () => null);
   assert.equal((await fetch(`${base}/api/posts/${POST_ID}/comments`, { headers: bearer(OTHER) })).status, 404);
+});
+
+// ---------------------------------------------------------------------------
+// Recherche (étape 4)
+// ---------------------------------------------------------------------------
+
+/** Doublure de la recherche de fiches : renvoie `ids` et capture le filtre. */
+function stubVehicleSearch(t, ids = []) {
+  const captured = {};
+  stub(t, Vehicle, "distinct", async (field, filter) => {
+    captured.filter = filter;
+    return ids;
+  });
+  return captured;
+}
+
+/** La regex ne trouve que le texte littéral : ".*" n'est pas un joker. */
+const literal = (source, text = "Mirage.*") => new RegExp(source).test(text) && !new RegExp(source).test("Mirage 2000");
+
+test("vehicleIdsMatching : nom ou alias du véhicule, regex échappée", async (t) => {
+  const vehicleId = new mongoose.Types.ObjectId();
+  const captured = stubVehicleSearch(t, [vehicleId]);
+
+  assert.deepEqual(await vehicleIdsMatching("Mirage.*"), [vehicleId]);
+  const [name, alias] = captured.filter.$or;
+  assert.ok(literal(name.name.$regex));
+  assert.equal(name.name.$options, "i");
+  assert.ok(literal(alias.aliases.$regex, "mirage.*"), "alias comparé au nom normalisé");
+});
+
+test("GET /api/posts/feed?q=&media=1 : posts rattachés aux véhicules trouvés, pas au texte", async (t) => {
+  const vehicleId = new mongoose.Types.ObjectId();
+  const captured = stubVehicleSearch(t, [vehicleId]);
+  let match;
+  stub(t, Post, "aggregatePaginate", async (aggregate, o) => {
+    match = aggregate.pipeline()[0].$match;
+    return { docs: [], totalDocs: 0, limit: o.limit, page: o.page, totalPages: 1 };
+  });
+
+  const r = await fetch(`${base}/api/posts/feed?q=${encodeURIComponent("  rafale ")}&media=1`, { headers: bearer() });
+  assert.equal(r.status, 200);
+  assert.equal(captured.filter.$or[0].name.$regex, "rafale", "q est nettoyé");
+  assert.deepEqual(match.vehicleId, { $in: [vehicleId] });
+  assert.equal(match.text, undefined, "le texte du post n'est pas cherché");
+  assert.deepEqual(match.mediaId, { $ne: null });
+  assert.equal(String(match.$or[0].ownerId), USER, "les droits du lecteur restent appliqués");
+});
+
+test("GET /api/posts/feed : sans q, aucun filtre de véhicule", async (t) => {
+  const captured = stubVehicleSearch(t);
+  let match;
+  stub(t, Post, "aggregatePaginate", async (aggregate, o) => {
+    match = aggregate.pipeline()[0].$match;
+    return { docs: [], totalDocs: 0, limit: o.limit, page: o.page, totalPages: 1 };
+  });
+
+  await fetch(`${base}/api/posts/feed?q=%20%20`, { headers: bearer() });
+  assert.equal(match.vehicleId, undefined);
+  assert.equal(match.mediaId, undefined);
+  assert.equal(captured.filter, undefined, "aucune recherche de fiche inutile");
+});
+
+test("GET /api/posts/feed?q= : combinable avec kind, catégorie inconnue refusée", async (t) => {
+  stubVehicleSearch(t);
+  let pipeline;
+  stub(t, Post, "aggregatePaginate", async (aggregate, o) => {
+    pipeline = aggregate.pipeline();
+    return { docs: [], totalDocs: 0, limit: o.limit, page: o.page, totalPages: 1 };
+  });
+
+  await fetch(`${base}/api/posts/feed?q=leclerc&kind=audio`, { headers: bearer() });
+  assert.ok(pipeline[0].$match.vehicleId);
+  assert.ok(pipeline.some((stage) => stage.$match?.["media.kind"] === "audio"));
+  assert.equal((await fetch(`${base}/api/posts/feed?q=leclerc&kind=pdf`, { headers: bearer() })).status, 400);
 });

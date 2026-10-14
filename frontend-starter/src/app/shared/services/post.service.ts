@@ -12,14 +12,22 @@ export class PostService {
   /**
    * Posts visibles, les plus récents d'abord. `others` exclut les miens ;
    * `author` / `kind` filtrent par auteur et type de média (page profil) ;
-   * `scope: 'friends'` ne garde que les posts de l'escadrille.
+   * `scope: 'friends'` ne garde que les posts de l'escadrille ;
+   * `q` recherche dans les posts et `media` ne garde que ceux avec un fichier.
    */
-  feed(page = 1, limit = 10, others = false, filters: { author?: string; kind?: MediaKind; scope?: 'friends' } = {}) {
+  feed(
+    page = 1,
+    limit = 10,
+    others = false,
+    filters: { author?: string; kind?: MediaKind; scope?: 'friends'; q?: string; media?: boolean } = {},
+  ) {
     const params: Record<string, string | number> = { page, limit };
     if (others) params['others'] = 1;
     if (filters.author) params['author'] = filters.author;
     if (filters.kind) params['kind'] = filters.kind;
     if (filters.scope) params['scope'] = filters.scope;
+    if (filters.q) params['q'] = filters.q;
+    if (filters.media) params['media'] = 1;
     return this.http.get<Page<Post>>('/api/posts/feed', { params });
   }
 

@@ -1,0 +1,54 @@
+:host { display: block; }
+
+.search-page { max-width: 860px; margin: 0 auto; }
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 1.4rem 0 0.4rem;
+  padding: 0 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.search-field input { flex: 1; padding: 0.85rem 0; background: transparent; border: 0; outline: none; font-size: 1rem; }
+.search-field:focus-within { border-color: var(--accent); }
+
+.results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin-top: 1.8rem; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.section-head h2 { margin: 0; font-size: 1.25rem; }
+.section-head a { color: var(--accent); font-size: 0.9rem; text-decoration: none; }
+.section-head a:hover { text-decoration: underline; }
+
+/* ---- Fiches véhicules -------------------------------------------------- */
+
+.vehicle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1rem; }
+.vehicle-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: transform 0.15s, border-color 0.15s;
+}
+.vehicle-card:hover, .vehicle-card:focus-visible { transform: translateY(-2px); border-color: var(--accent); }
+.visual { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: var(--surface-2); }
+.silhouette { position: absolute; inset: 14% 12% 8%; }
+.body { display: grid; gap: 0.4rem; padding: 0.8rem 1rem 1rem; }
+.body b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.meta small { color: var(--muted); }
+.meta .pill { padding: 0 0.5rem; font-size: 0.75rem; }
+.empty-vehicles { grid-column: 1 / -1; margin: 0; }
+.empty-vehicles a { color: var(--accent); }
+
+/* ---- Publications ----------------------------------------------------- */
+
+.posts .chips { margin: 0; }
+.empty { text-align: center; }
+.center { text-align: center; }
+.more { justify-self: center; }
