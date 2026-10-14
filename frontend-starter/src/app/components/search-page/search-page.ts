@@ -20,7 +20,7 @@ const KINDS: readonly MediaKind[] = ['audio', 'image', 'video'];
 
 /**
  * Recherche (TP4, étape 4) : les fiches véhicules correspondantes, puis les
- * posts avec un fichier rattachés à ces véhicules (pas au texte du post). La recherche vit dans l'URL (`?q=&kind=`) : le lien
+ * posts avec un fichier dont le véhicule ou l'auteur correspond (pas le texte du post). La recherche vit dans l'URL (`?q=&kind=`) : le lien
  * se partage et le bouton retour fonctionne. Sans texte, la page liste les
  * derniers fichiers publiés.
  */

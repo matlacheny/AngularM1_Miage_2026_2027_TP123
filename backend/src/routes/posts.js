@@ -5,6 +5,7 @@ import { VISIBILITIES, accessFilter } from "../access.js";
 import { Comment, publicCommentPipeline } from "../models/Comment.js";
 import { Media } from "../models/Media.js";
 import { Post, publicPostPipeline } from "../models/Post.js";
+import { User } from "../models/User.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { normalizeName } from "../wikipedia.js";
 import { escapeRegExp, loadFriendIds, streamUrlFor } from "./media.js";
@@ -29,13 +30,19 @@ export async function visibleTo(viewerId) {
 }
 
 /**
- * Recherche : identifiants des fiches véhicules dont le nom ou un alias
- * contient `q`. Un post est trouvé par le véhicule auquel il est rattaché,
- * pas par son texte. Les droits restent ceux du post (visibleTo).
+ * Condition de recherche : le post est rattaché à une fiche véhicule dont le
+ * nom ou un alias contient `q`, ou son auteur a un nom qui contient `q`.
+ * Le texte du post n'est pas cherché. Fiches et membres sont cherchés d'abord,
+ * pour que le $match reste en tête du pipeline. Les droits restent ceux du
+ * post (visibleTo).
  */
-export function vehicleIdsMatching(q) {
+export async function searchCondition(q) {
   const regex = { $regex: escapeRegExp(q), $options: "i" };
-  return Vehicle.distinct("_id", { $or: [{ name: regex }, { aliases: { $regex: escapeRegExp(normalizeName(q)) } }] });
+  const [vehicleIds, ownerIds] = await Promise.all([
+    Vehicle.distinct("_id", { $or: [{ name: regex }, { aliases: { $regex: escapeRegExp(normalizeName(q)) } }] }),
+    User.distinct("_id", { name: regex }),
+  ]);
+  return { $or: [{ vehicleId: { $in: vehicleIds } }, { ownerId: { $in: ownerIds } }] };
 }
 
 /** Ajoute l'URL de lecture signée au média de chaque post. */
@@ -62,8 +69,8 @@ export function createPostsRouter() {
    * Fil : posts visibles par le lecteur, les plus récents d'abord.
    * `others=1` exclut ses propres posts ; `scope=friends` ne garde que ceux
    * de l'escadrille (colonne « Escadrille · posts récents », onglet du fil).
-   * Recherche : `q` garde les posts rattachés à un véhicule correspondant
-   * (voir vehicleIdsMatching) et `media=1` ne
+   * Recherche : `q` garde les posts dont le véhicule ou l'auteur correspond
+   * (voir searchCondition) et `media=1` ne
    * garde que les posts avec un fichier.
    */
   router.get("/feed", auth, async (req, res, next) => {
@@ -86,7 +93,8 @@ export function createPostsRouter() {
       if (kind && !MEDIA_KINDS.includes(kind)) return res.status(400).json({ message: "Catégorie inconnue" });
       if (req.query.media === "1") match.mediaId = { $ne: null };
       const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
-      if (q) match.vehicleId = { $in: await vehicleIdsMatching(q) };
+      // $and : les droits occupent déjà la clé $or du filtre.
+      if (q) match.$and = [await searchCondition(q)];
 
       const pipeline = publicPostPipeline(match, viewer, kind || null);
       const result = await Post.aggregatePaginate(Post.aggregate(pipeline), { page, limit });

@@ -591,7 +591,7 @@ Cette étape répond aux exigences « search files » et « fichiers récemment 
 - **Page « Recherche »** (`/search?q=&kind=`), ouverte par la barre de recherche de la colonne de gauche (qui ne cherchait jusqu'ici que les véhicules). Elle a deux parties :
   1. **Fiches véhicules** : les 4 premières fiches correspondantes, avec « Voir les N fiches » vers le catalogue filtré, ou « Créer la fiche » si aucune ne correspond ;
   2. **Publications avec fichier** : les posts trouvés, affichés comme dans le fil (J'aime, commentaires), filtrables par type (Tous / Sons / Photos / Vidéos), avec « Plus de résultats ».
-- Un post est trouvé par **le véhicule auquel il est rattaché** (son « tag ») : le nom ou un alias de la fiche contient le texte cherché, sans tenir compte de la casse. Le texte du post, le titre du fichier et l'auteur ne sont pas cherchés : écrire « Rafale » dans un post sur un Mirage ne le fait pas apparaître dans les résultats « Rafale ».
+- Un post est trouvé par **le véhicule auquel il est rattaché** (son « tag » : le nom ou un alias de la fiche) **ou par le nom de son auteur**, sans tenir compte de la casse. Le texte du post et le titre du fichier ne sont pas cherchés : écrire « Rafale » dans un post sur un Mirage ne le fait pas apparaître dans les résultats « Rafale ».
 - **Sans texte**, la page affiche les **derniers fichiers publiés**.
 - La recherche est dans l'URL : le lien se partage et le bouton retour du navigateur fonctionne.
 
@@ -602,10 +602,11 @@ Cette étape répond aux exigences « search files » et « fichiers récemment 
 - la pagination, le format des posts et l'URL de lecture signée des fichiers ;
 - les filtres `kind`, `author` et `scope`, combinables avec `q`.
 
-**Recherche en deux temps** (`vehicleIdsMatching` dans `routes/posts.js`) :
-- d'abord les identifiants des fiches dont le nom ou un alias contient `q` (`distinct`), avec la même règle que le catalogue des véhicules ;
-- puis `vehicleId: { $in: … }` dans le `$match` des posts, qui reste en tête du pipeline, avant les `$lookup`.
-- Les deux parties de la page sont donc cohérentes : les posts affichés sont ceux des fiches trouvées (y compris au-delà des 4 fiches affichées).
+**Recherche en deux temps** (`searchCondition` dans `routes/posts.js`) :
+- d'abord les identifiants des fiches dont le nom ou un alias contient `q` (même règle que le catalogue des véhicules) et des membres dont le nom contient `q` (`distinct`) ;
+- puis `$or: [vehicleId ∈ …, ownerId ∈ …]` dans le `$match` des posts, qui reste en tête du pipeline, avant les `$lookup`.
+- Les droits occupant déjà la clé `$or` du filtre, la recherche est ajoutée par un `$and`.
+- Les posts affichés comprennent ceux de toutes les fiches trouvées, y compris au-delà des 4 fiches affichées.
 
 **Regex plutôt qu'index texte.** Un index `$text` MongoDB ne trouve que des mots entiers (« raf » ne trouverait pas « Rafale »). À ce volume, une regex insensible à la casse suffit. `q` est échappé (`.*` est cherché littéralement) et limité à 100 caractères.
 
@@ -623,15 +624,15 @@ Sur la base de démonstration, avec une instance du backend lancée à part (com
 - « rafale » : 4 posts, tous rattachés au Dassault Rafale ;
 - « mirage » : 9 posts, rattachés aux Mirage F1, 2000, III et IV ;
 - « mi-24 » : 2 posts (alias du Mil Mi-24) ;
-- « Hugo » : aucun résultat (le nom de l'auteur n'est pas cherché) ;
+- « Hugo » : 11 posts de Hugo Petit (nom de l'auteur), quel que soit leur véhicule ;
 - « .* » : aucun résultat (regex échappée).
 
 ### Tests
 
 **Backend** (+4, `test/posts.test.js`) :
-- `vehicleIdsMatching` : nom ou alias normalisé, regex échappée ;
-- `q` nettoyé, filtre sur le véhicule (et non le texte), `media=1` appliqué, droits du lecteur conservés ;
-- `q` vide : aucun filtre ni recherche de fiche ;
+- `searchCondition` : véhicule (nom ou alias normalisé) ou auteur, jamais le texte, regex échappée ;
+- `q` nettoyé, `media=1` appliqué, droits du lecteur conservés ;
+- `q` vide : aucune condition ni recherche préalable ;
 - `q` combiné avec `kind`, 400 pour un type inconnu.
 
 **Frontend** (+8, `search-page.spec.ts`) :
