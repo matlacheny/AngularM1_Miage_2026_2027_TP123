@@ -39,6 +39,8 @@ export class FeedPageComponent {
   readonly kindLabels = KIND_LABELS;
   readonly categoryLabels = CATEGORY_LABELS;
 
+  /** Onglet du fil : tous les posts visibles, ou seulement ceux de l'escadrille. */
+  readonly scope = signal<'all' | 'friends'>('all');
   readonly posts = signal<Post[]>([]);
   readonly page = signal(1);
   readonly hasMore = signal(false);
@@ -61,7 +63,8 @@ export class FeedPageComponent {
   loadPage(page: number): void {
     this.loading.set(true);
     this.error.set('');
-    this.postService.feed(page, FEED_PAGE_SIZE).subscribe({
+    const filters = this.scope() === 'friends' ? { scope: 'friends' as const } : {};
+    this.postService.feed(page, FEED_PAGE_SIZE, false, filters).subscribe({
       next: (response) => {
         this.posts.update((list) => (page === 1 ? response.docs : [...list, ...response.docs]));
         this.page.set(page);
@@ -77,10 +80,16 @@ export class FeedPageComponent {
   }
 
   private loadRecent(): void {
-    this.postService.feed(1, 4, true).subscribe({
+    this.postService.feed(1, 4, false, { scope: 'friends' }).subscribe({
       next: (page) => this.recent.set(page.docs),
       error: (error: HttpErrorResponse) => console.error('[FeedPage] Posts récents indisponibles', error.status),
     });
+  }
+
+  setScope(scope: 'all' | 'friends'): void {
+    if (scope === this.scope()) return;
+    this.scope.set(scope);
+    this.loadPage(1);
   }
 
   more(): void {

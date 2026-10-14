@@ -15,14 +15,16 @@ import {
 import { Vehicle } from '../../shared/models/vehicle.model';
 import { MediaService } from '../../shared/services/media.service';
 import { VehicleService } from '../../shared/services/vehicle.service';
+import { IconComponent } from '../../shared/components/icon/icon';
 import { MediaViewerComponent } from '../media-viewer/media-viewer';
+import { SharePanelComponent } from '../share-panel/share-panel';
 import { VehiclePickerComponent } from '../vehicle-picker/vehicle-picker';
 
 export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 
 /** « Mon hangar » : upload et gestion de mes sons, photos et vidéos. */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink, MediaViewerComponent, VehiclePickerComponent],
+  imports: [ReactiveFormsModule, RouterLink, IconComponent, MediaViewerComponent, SharePanelComponent, VehiclePickerComponent],
   templateUrl: './hangar-page.html',
   styleUrl: './hangar-page.css',
 })
@@ -56,6 +58,11 @@ export class HangarPageComponent {
   /** URL de lecture signée du média actuellement ouvert. */
   readonly opened = signal<{ media: Media; url: string } | null>(null);
   readonly busyId = signal<string | null>(null);
+  /** Média dont le panneau de partage est ouvert. */
+  readonly sharingId = signal<string | null>(null);
+  /** Médias partagés avec moi, et celui ouvert dans le lecteur. */
+  readonly sharedWithMe = signal<Media[]>([]);
+  readonly sharedOpened = signal<Media | null>(null);
 
   readonly title = new FormControl('', { nonNullable: true });
   readonly visibility = new FormControl<Visibility>('private', { nonNullable: true });
@@ -65,6 +72,7 @@ export class HangarPageComponent {
   file?: File;
 
   constructor() {
+    this.loadSharedWithMe();
     effect(() => {
       const id = this.vehicleParam();
       if (!id) return;
@@ -168,6 +176,17 @@ export class HangarPageComponent {
         console.error('[HangarPage] URL de lecture refusée', error);
         this.snackBar.open(error.error?.message ?? 'Impossible de lire ce média.', 'OK', { duration: 5000 });
       },
+    });
+  }
+
+  toggleSharing(id: string): void {
+    this.sharingId.set(this.sharingId() === id ? null : id);
+  }
+
+  private loadSharedWithMe(): void {
+    this.service.sharedWithMe().subscribe({
+      next: (page) => this.sharedWithMe.set(page.docs),
+      error: (error: HttpErrorResponse) => console.error('[HangarPage] Partages reçus indisponibles', error.status),
     });
   }
 

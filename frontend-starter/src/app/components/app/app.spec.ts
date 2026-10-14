@@ -38,11 +38,14 @@ describe('AppComponent', () => {
     TestBed.inject(AuthService).token.set('jwt');
     const fixture = create();
     http.expectOne('/api/users/me').flush({ id: 'u1', name: 'Matteo Lacheny', email: 'm@example.com', createdAt: '' });
+    http.expectOne('/api/friends').flush({ friends: [], incoming: [{ requestId: 'r1', user: { id: 'u2', name: 'Bob', location: '', bio: '' }, createdAt: '' }], outgoing: [] });
     fixture.detectChanges();
     await fixture.whenStable();
 
     const sidebar = (fixture.nativeElement as HTMLElement).querySelector('aside.sidebar')!;
-    expect([...sidebar.querySelectorAll('nav a')].map((a) => a.textContent?.trim())).toEqual(['Accueil', 'Véhicules', 'Profil']);
+    const links = [...sidebar.querySelectorAll('nav a')].map((a) => a.textContent?.replace(/\s+/g, ' ').trim());
+    expect(links).toEqual(['Accueil', 'Véhicules', 'Escadrille 1', 'Profil']);
+    expect(sidebar.querySelector('.badge-count')?.textContent).toBe('1'); // une invitation reçue
     expect(sidebar.querySelector('.avatar')?.textContent).toBe('ML');
     expect(sidebar.querySelector('.user-card b')?.textContent).toContain('Matteo Lacheny');
   });
@@ -51,6 +54,7 @@ describe('AppComponent', () => {
     TestBed.inject(AuthService).token.set('jwt');
     const fixture = create();
     http.expectOne('/api/users/me').flush({ id: 'u1', name: 'M', email: 'm@example.com', createdAt: '' });
+    http.expectOne('/api/friends').flush({ friends: [], incoming: [], outgoing: [] });
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     fixture.componentInstance.search.setValue('  Rafale ');

@@ -10,6 +10,11 @@
 
     <app-post-composer (published)="onPublished($event)" />
 
+    <div class="chips" role="group" aria-label="Filtrer le fil">
+      <button type="button" [class.active]="scope() === 'all'" (click)="setScope('all')">Tout</button>
+      <button type="button" [class.active]="scope() === 'friends'" (click)="setScope('friends')">Mon escadrille</button>
+    </div>
+
     @if (error()) {
       <p class="error" role="alert">{{ error() }}</p>
     }
@@ -19,8 +24,13 @@
     } @empty {
       @if (!loading()) {
         <div class="card empty">
-          <b>Le fil est vide pour l'instant.</b>
-          <p class="hint">Publiez le premier son, la première photo ou la première vidéo avec la zone ci-dessus.</p>
+          @if (scope() === 'friends') {
+            <b>Rien de nouveau dans votre escadrille.</b>
+            <p class="hint">Invitez des membres depuis la page <a routerLink="/escadrille">Escadrille</a>.</p>
+          } @else {
+            <b>Le fil est vide pour l'instant.</b>
+            <p class="hint">Publiez le premier son, la première photo ou la première vidéo avec la zone ci-dessus.</p>
+          }
         </div>
       }
     }
@@ -59,7 +69,8 @@
 
     <section class="card side-card" aria-labelledby="recent-title">
       <div class="side-head">
-        <h2 id="recent-title">Posts récents</h2>
+        <h2 id="recent-title">Escadrille · posts récents</h2>
+        <a routerLink="/escadrille">Voir tout</a>
       </div>
       @for (p of recent(); track p.id) {
         <a class="side-item" [routerLink]="['/posts', p.id]">
@@ -71,7 +82,7 @@
           <small class="ago" [class.fresh]="isFresh(p)">{{ ago(p) }}</small>
         </a>
       } @empty {
-        <p class="hint">Aucune publication d'autres membres pour l'instant.</p>
+        <p class="hint">Aucune publication de votre escadrille. <a routerLink="/escadrille">Inviter des membres</a></p>
       }
     </section>
   </aside>

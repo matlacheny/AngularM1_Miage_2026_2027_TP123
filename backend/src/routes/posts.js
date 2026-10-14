@@ -49,7 +49,8 @@ export function createPostsRouter() {
 
   /**
    * Fil : posts visibles par le lecteur, les plus récents d'abord.
-   * `others=1` exclut ses propres posts (colonne « posts récents »).
+   * `others=1` exclut ses propres posts ; `scope=friends` ne garde que ceux
+   * de l'escadrille (colonne « Escadrille · posts récents », onglet du fil).
    */
   router.get("/feed", auth, async (req, res, next) => {
     try {
@@ -57,6 +58,11 @@ export function createPostsRouter() {
       const viewer = new Types.ObjectId(req.auth.sub);
       const match = { ...(await visibleTo(req.auth.sub)) };
       if (req.query.others === "1") match.ownerId = { $ne: viewer };
+      // Activité de l'escadrille : uniquement les posts de mes amis.
+      if (req.query.scope === "friends") {
+        const friends = [...(await loadFriendIds(req.auth.sub))].map((id) => new Types.ObjectId(id));
+        match.ownerId = { $in: friends };
+      }
       // Page profil : posts d'un auteur, éventuellement d'un seul type de média.
       if (typeof req.query.author === "string" && req.query.author) {
         if (!mongoose.isValidObjectId(req.query.author)) return res.status(400).json({ message: "Auteur invalide" });

@@ -102,6 +102,15 @@
               </button>
               <button
                 type="button"
+                class="secondary"
+                [attr.aria-expanded]="sharingId() === media.id"
+                (click)="toggleSharing(media.id)"
+                [attr.aria-label]="'Partager ' + media.title"
+              >
+                <app-icon name="share" />
+              </button>
+              <button
+                type="button"
                 class="danger"
                 (click)="remove(media)"
                 [disabled]="busyId() !== null"
@@ -110,6 +119,9 @@
                 {{ busyId() === media.id ? '…' : 'Supprimer' }}
               </button>
             </div>
+            @if (sharingId() === media.id) {
+              <app-share-panel [mediaId]="media.id" />
+            }
           </article>
         } @empty {
           @if (!loading()) {
@@ -125,4 +137,32 @@
       </div>
     </article>
   </div>
+
+  <article class="card shared" aria-labelledby="shared-title">
+    <h2 id="shared-title">Partagés avec moi</h2>
+    <p class="hint">Médias que des membres de votre escadrille ont partagés avec vous.</p>
+    @if (sharedOpened(); as s) {
+      @if (s.url) {
+        <app-media-viewer [media]="s" [url]="s.url" (closed)="sharedOpened.set(null)" />
+      }
+    }
+    <div class="media-grid">
+      @for (m of sharedWithMe(); track m.id) {
+        <article class="media-card">
+          <span class="badge pill pill-accent">{{ kindLabels[m.kind] }}</span>
+          <h3>{{ m.title }}</h3>
+          @if (m.owner; as owner) {
+            <a class="owner" [routerLink]="['/users', owner.id]">par {{ owner.name }}</a>
+          }
+          <div class="media-card-actions">
+            <button type="button" (click)="sharedOpened.set(m)" [attr.aria-label]="'Ouvrir ' + m.title">
+              {{ m.kind === 'image' ? 'Voir' : '▶' }}
+            </button>
+          </div>
+        </article>
+      } @empty {
+        <p class="hint">Rien pour l'instant.</p>
+      }
+    </div>
+  </article>
 </section>

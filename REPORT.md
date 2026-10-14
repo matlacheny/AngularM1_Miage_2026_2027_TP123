@@ -17,8 +17,8 @@ Chaque média peut être rattaché à une **fiche véhicule** (Rafale, Leclerc, 
 | 2 | Fiches véhicules + enrichissement et validation via Wikipedia/Wikidata | **Terminée** |
 | 3 | Posts (fil d’actualité, J’aime, commentaires) + page profil | **Terminée** (sections 8 et 9) |
 | 4 | Recherche avec filtres + « derniers ajouts » | À faire |
-| 5 | Escadrille (amis) + partage ciblé révocable | À faire |
-| 6 | Fil d'activité de l'escadrille | À faire |
+| 5 | Escadrille (amis) + partage ciblé révocable | **Terminée** (section 10) |
+| 6 | Fil d’activité de l’escadrille | **Terminée** (section 10) |
 | 7 | Lecteur WebAudio : forme d'onde, spectrogramme, vu-mètres | À faire |
 | 8 | Effets audio + comparaison A/B de deux moteurs | À faire |
 
@@ -81,7 +81,7 @@ Les balises `<video>`, `<audio>` et `<img>` ne peuvent pas envoyer l'en-tête `A
 
 ### Tests
 
-Résultats à la fin de l'étape 1. Les totaux actuels sont dans la section 10.
+Résultats à la fin de l'étape 1. Les totaux actuels sont dans la section 11.
 
 **Backend** (`cd backend && npm test`, Node test runner, sans MongoDB : le modèle est remplacé par des doublures) : **38 tests, 38 réussis**. Il y avait 11 tests existants et 27 nouveaux dans `test/media.test.js` :
 - `canAccess` : propriétaire, public, privé, `friends` avec et sans ami, partage explicite, entrées manquantes ;
@@ -497,10 +497,95 @@ Réalisée d'après la maquette « Profil ».
   - lien auteur sur les posts ;
   - étoile des favoris sur la fiche véhicule (ajout, retrait, erreur affichée).
 
-## 10. Résultats actuels des tests
+## 10. Étapes 5 et 6 — Escadrille, partages et activité des amis
+
+Ces étapes répondent aux exigences « fichiers privés partagés avec des amis » du sujet :
+- inviter, ajouter et supprimer des amis ;
+- voir l'activité des amis ;
+- arrêter un partage.
+
+### Fonctionnalités
+
+- **Page « Escadrille »** (`/escadrille`, nouvelle entrée du menu avec une pastille ambre indiquant le nombre d'invitations reçues) :
+  - recherche de membres par nom, avec le bon bouton pour chacun (Inviter, Invitation envoyée, Accepter, Dans votre escadrille) ;
+  - liste des amis avec « Retirer » ;
+  - invitations reçues (Accepter / Refuser) et envoyées (Annuler).
+- **Profil** (maquette « Profil ») :
+  - bouton de relation : « Inviter dans l'escadrille », « Invitation envoyée · Annuler », « Accepter / Refuser », ou « ✓ Dans votre escadrille » avec un menu « … » → Retirer ;
+  - compteur d'amis ;
+  - colonne « Amis en commun » (ou « Mon escadrille » sur son propre profil), avec la pile d'avatars et la liste.
+- **Visibilité « Escadrille »** : elle est maintenant réelle (médias, posts, fiches, profils).
+- **Partage ciblé** (« Mon hangar ») :
+  - bouton Partager sur chaque média : la liste de son escadrille avec « Partager » / « Partagé · Arrêter » ;
+  - section « Partagés avec moi ».
+- **Activité des amis** :
+  - onglets « Tout » / « Mon escadrille » dans le fil ;
+  - la colonne de droite devient « Escadrille · posts récents », comme sur la maquette.
+
+### Choix techniques
+
+**Modèle `Friendship`.** Un seul document par paire de membres, avec les champs `requesterId`, `recipientId`, `status` (`pending` ou `accepted`) et `pairKey`.
+- `pairKey` est la paire d'identifiants triés, sous index unique. Il ne peut donc exister qu'un lien entre deux personnes, quel que soit le sens de la demande.
+- Deux invitations simultanées : la seconde reçoit 409.
+- Deux invitations croisées : la seconde accepte directement la première.
+- Refuser, annuler ou retirer supprime le document.
+
+**Une seule source pour les droits.** Depuis l'étape 1, toutes les règles d'accès (`canAccess`, `accessFilter`) recevaient une liste d'amis vide en attendant cette étape. `src/friends.js` fournit maintenant la vraie liste, et aucune règle d'accès n'a été modifiée. Les tests de concordance `canAccess` / `accessFilter` couvraient déjà le cas « ami ».
+
+**Arrêt d'un partage.**
+- On ne partage qu'avec un ami (`400` sinon).
+- Arrêter un partage est un `$pull` qui ne vérifie pas l'amitié : on peut retirer l'accès à un ancien ami.
+- Les droits étant revérifiés à chaque lecture de fichier, l'arrêt est immédiat, même pour une URL de lecture déjà distribuée.
+- Retirer un ami arrête automatiquement les partages dans les deux sens.
+
+**Profil.** Le nombre d'amis, la relation et les amis en commun (intersection des deux listes) sont calculés côté serveur, dans la même requête que le profil.
+
+**Tests sans base.** La liste d'amis passe par un objet remplaçable (`friendships.idsOf`). `test/setup.js`, importé par chaque fichier de test, le remplace par une doublure vide ; chaque test peut fournir sa propre liste.
+
+### Écart avec la maquette
+
+L'entrée « Escadrille » a été ajoutée au menu (la maquette n'a que Accueil / Véhicules / Profil). Il fallait un endroit pour gérer les invitations ; « Voir tout » sur le profil et dans le fil y mènent aussi. L'icône de message à côté de chaque ami (messagerie) n'est pas reprise : la messagerie ne fait pas partie du projet.
+
+### Tests
+
+**Backend** (+18, `test/friends.test.js`) :
+- `pairKey` symétrique, `friendIdsOf`, `relationTo` (5 états) ;
+- visibilité « Escadrille » : un ami voit le média, un autre membre non ;
+- invitations :
+  - 400 pour soi-même, 404 pour un inconnu, 409 si déjà amis ou déjà invité ;
+  - invitations croisées acceptées directement ;
+  - 201 avec l'expéditeur issu du JWT ;
+- acceptation réservée au destinataire ; refus et annulation limités aux deux membres ;
+- retrait d'un ami qui arrête les partages dans les deux sens ;
+- `GET /friends` sans email ;
+- recherche de membres (regex échappée, soi-même exclu, relation de chacun) ;
+- profil : nombre d'amis, relation, amis en commun ;
+- partage réservé aux amis et au propriétaire ; arrêt sans exigence d'amitié ;
+- « Partagés avec moi » ;
+- fil `scope=friends`.
+
+**Frontend** (+13, 3 nouveaux fichiers) :
+- `RelationButtonComponent` : inviter, accepter, annuler, retirer après confirmation, erreur affichée ;
+- `SquadronPageComponent` : affichage et pastille, accepter, confirmation du retrait, recherche ;
+- `SharePanelComponent` : état des partages, partager puis arrêter, refus du serveur ;
+- onglet « Mon escadrille » du fil.
+
+Les tests existants ont été adaptés aux nouvelles requêtes (escadrille au démarrage, partages reçus du hangar, `scope` du fil, colonne « Amis en commun » du profil).
+
+## Données de démonstration
+
+`cd backend && npm run seed` (`scripts/seed.js`) remplit la base pour les démonstrations :
+- 20 comptes (mot de passe commun `Afterburner2026!`, emails en `@afterburner.seed`), avec ville, biographie et véhicules préférés ;
+- 100 fiches véhicules avec pays et drapeaux (sans dupliquer les fiches existantes) ;
+- environ 80 liens d'escadrille, dont 5 amis et une invitation en attente pour le compte démo ;
+- 200 posts répartis sur 6 mois (plus nombreux récemment, publiés entre 8 h et 21 h ; 80 % publics, le reste Escadrille ou Privé), avec J'aime et commentaires datés après le post.
+
+Les posts sont textuels : le script ne fabrique pas de fichiers audio ou vidéo. Les fiches de démonstration n'interrogent pas Wikipédia (limitation de débit) : elles n'ont ni photo ni résumé réel. Le script est déterministe et relançable ; il supprime d'abord ses propres données, sans toucher aux comptes ni aux fiches existants.
+
+## 11. Résultats actuels des tests
 
 | Suite | Commande | Résultat |
 |---|---|---|
-| Backend | `cd backend && npm test` | **83 tests, 83 réussis** |
-| Frontend | `cd frontend-starter && npm test` | **88 tests, 88 réussis** (17 fichiers) |
+| Backend | `cd backend && npm test` | **102 tests, 102 réussis** |
+| Frontend | `cd frontend-starter && npm test` | **101 tests, 101 réussis** (20 fichiers) |
 | Build | `cd frontend-starter && npx ng build` | OK, sans avertissement |

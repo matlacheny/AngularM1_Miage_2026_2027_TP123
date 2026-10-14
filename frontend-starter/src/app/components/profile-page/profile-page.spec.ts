@@ -17,6 +17,10 @@ const lucas: UserProfile = {
   location: 'Salon-de-Provence',
   createdAt: '2025-03-12T10:00:00.000Z',
   postCount: 34,
+  friendCount: 128,
+  relation: { status: 'friend', requestId: 'l1' },
+  mutualFriendCount: 1,
+  mutualFriends: [{ id: 'u3', name: 'Sarah Nguyen', location: '', bio: 'Passionnée d’hélicoptères' }],
   favorites: [
     { id: 'v1', name: 'Dassault Rafale', category: 'aircraft', countries: ['France'], origins: [FR] },
     { id: 'v4', name: 'Eurofighter Typhoon', category: 'aircraft', countries: ['Royaume-Uni'], origins: [UK] },
@@ -79,7 +83,12 @@ describe('ProfilePageComponent', () => {
     expect([...card.querySelectorAll('.fav b')].map((b) => b.textContent)).toEqual(['Dassault Rafale', 'Eurofighter Typhoon', 'Leclerc']);
     expect(card.querySelector('a.fav')?.getAttribute('href')).toBe('/vehicles/v1');
     expect(component.isMe()).toBe(false);
-    expect(card.querySelector('.edit-button')).toBeNull();
+    expect(card.textContent).not.toContain('Modifier le profil');
+    expect(card.querySelector('app-relation-button')?.textContent).toContain('Dans votre escadrille');
+    expect(card.querySelector('.stats')?.textContent).toContain('128');
+    const aside = element().querySelector('.aside')!;
+    expect(aside.querySelector('h2')?.textContent).toContain('Amis en commun');
+    expect(aside.querySelector('a.friend')?.getAttribute('href')).toBe('/users/u3');
   });
 
   it('/profile : charge le profil de l’utilisateur connecté et permet de le modifier', async () => {

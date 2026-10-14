@@ -1,0 +1,88 @@
+<header class="page-header">
+  <p class="eyebrow">Escadrille</p>
+  <h1 class="page-title">Vos amis et invitations</h1>
+  <p class="page-subtitle">
+    Les membres de votre escadrille voient vos médias « Escadrille », et vous pouvez leur partager vos médias privés.
+  </p>
+</header>
+
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}
+
+<div class="layout">
+  <div class="main">
+    <section class="card" aria-labelledby="find-title">
+      <h2 id="find-title">Trouver des membres</h2>
+      <label class="search-field">
+        <app-icon name="search" />
+        <input [formControl]="search" type="search" placeholder="Nom d'un membre…" aria-label="Nom d'un membre" />
+      </label>
+      @for (m of results(); track m.id) {
+        <div class="person">
+          <app-avatar [name]="m.name" />
+          <a class="who" [routerLink]="['/users', m.id]">
+            <b>{{ m.name }}</b>
+            <small>{{ m.location || m.bio }}</small>
+          </a>
+          <app-relation-button [userId]="m.id" [relation]="m.relation" (changed)="refresh()" />
+        </div>
+      } @empty {
+        @if (searched()) {
+          <p class="hint">Aucun membre ne correspond à « {{ search.value.trim() }} ».</p>
+        }
+      }
+    </section>
+
+    <section class="card" aria-labelledby="friends-title">
+      <h2 id="friends-title">Mon escadrille <span class="count">{{ squadron().friends.length }}</span></h2>
+      @for (f of squadron().friends; track f.id) {
+        <div class="person">
+          <app-avatar [name]="f.name" />
+          <a class="who" [routerLink]="['/users', f.id]">
+            <b>{{ f.name }}</b>
+            <small>{{ f.bio || f.location }}</small>
+          </a>
+          <button type="button" class="secondary" [disabled]="busyId() !== null" (click)="remove(f.id, f.name)">Retirer</button>
+        </div>
+      } @empty {
+        @if (!loading()) {
+          <p class="hint">Votre escadrille est vide. Cherchez des membres ci-dessus pour les inviter.</p>
+        }
+      }
+    </section>
+  </div>
+
+  <aside class="aside">
+    <section class="card" aria-labelledby="incoming-title">
+      <h2 id="incoming-title">Invitations reçues <span class="count accent">{{ squadron().incoming.length }}</span></h2>
+      @for (r of squadron().incoming; track r.requestId) {
+        <div class="person compact">
+          <app-avatar [name]="r.user.name" />
+          <a class="who" [routerLink]="['/users', r.user.id]"><b>{{ r.user.name }}</b><small>{{ r.user.location }}</small></a>
+        </div>
+        <div class="request-actions">
+          <button type="button" [disabled]="busyId() !== null" (click)="accept(r)"><app-icon name="check" /> Accepter</button>
+          <button type="button" class="secondary" [disabled]="busyId() !== null" (click)="dismiss(r)">Refuser</button>
+        </div>
+      } @empty {
+        <p class="hint">Aucune invitation en attente.</p>
+      }
+    </section>
+
+    <section class="card" aria-labelledby="outgoing-title">
+      <h2 id="outgoing-title">Invitations envoyées</h2>
+      @for (r of squadron().outgoing; track r.requestId) {
+        <div class="person compact">
+          <app-avatar [name]="r.user.name" />
+          <a class="who" [routerLink]="['/users', r.user.id]"><b>{{ r.user.name }}</b><small>En attente</small></a>
+          <button type="button" class="ghost" [disabled]="busyId() !== null" (click)="dismiss(r)" [attr.aria-label]="'Annuler l\'invitation à ' + r.user.name">
+            <app-icon name="x" />
+          </button>
+        </div>
+      } @empty {
+        <p class="hint">Aucune invitation envoyée.</p>
+      }
+    </section>
+  </aside>
+</div>

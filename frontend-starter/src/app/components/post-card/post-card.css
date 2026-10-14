@@ -14,7 +14,7 @@
 .menu-panel button { white-space: nowrap; }
 .danger-text { color: var(--danger); }
 
-.text { margin: 0.9rem 0 0.7rem; font-size: 1.02rem; line-height: 1.55; white-space: pre-line; }
+.text { margin: 0.9rem 0 0.7rem; font-size: 1.02rem; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
 
 .tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; }
 .vehicle-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.65rem; color: var(--text); font-size: 0.85rem; text-decoration: none; background: var(--surface-3); border-radius: 999px; --icon-size: 0.95rem; }

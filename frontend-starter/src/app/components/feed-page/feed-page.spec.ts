@@ -40,8 +40,9 @@ describe('FeedPageComponent', () => {
   let component: FeedPageComponent;
   let http: HttpTestingController;
 
-  const expectFeed = (others = false): TestRequest =>
-    http.expectOne((r) => r.url === '/api/posts/feed' && r.params.has('others') === others);
+  /** Fil principal (scope absent) ou posts de l'escadrille (scope=friends). */
+  const expectFeed = (friends = false): TestRequest =>
+    http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('scope') === (friends ? 'friends' : null));
   const element = () => fixture.nativeElement as HTMLElement;
   const render = async () => {
     fixture.detectChanges();
@@ -110,5 +111,27 @@ describe('FeedPageComponent', () => {
     flushInitial(page([]));
     await render();
     expect(element().textContent).toContain('Le fil est vide');
+  });
+});
+
+describe('FeedPageComponent — onglet escadrille', () => {
+  it('« Mon escadrille » recharge le fil avec scope=friends', () => {
+    TestBed.configureTestingModule({
+      imports: [FeedPageComponent],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const component = TestBed.createComponent(FeedPageComponent).componentInstance;
+    const feed = (friends: boolean) =>
+      http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('scope') === (friends ? 'friends' : null) && r.params.get('limit') === '10');
+
+    feed(false).flush(page([]));
+    http.expectOne((r) => r.url === '/api/vehicles').flush(page([]));
+    http.expectOne((r) => r.url === '/api/posts/feed' && r.params.get('limit') === '4').flush(page([]));
+
+    component.setScope('friends');
+    feed(true).flush(page([]));
+    component.setScope('friends'); // déjà actif : aucune requête
+    http.verify();
   });
 });

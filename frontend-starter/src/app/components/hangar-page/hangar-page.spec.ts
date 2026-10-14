@@ -54,6 +54,8 @@ describe('HangarPageComponent', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(HangarPageComponent);
     component = fixture.componentInstance;
+    // Section « Partagés avec moi », chargée au démarrage.
+    http.expectOne((r) => r.url === '/api/media/shared-with-me').flush(page([]));
   });
 
   afterEach(() => {

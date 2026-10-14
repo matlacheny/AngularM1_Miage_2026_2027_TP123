@@ -7,6 +7,7 @@ import { createMediaRouter } from "./routes/media.js";
 import { createVehiclesRouter } from "./routes/vehicles.js";
 import { createPostsRouter } from "./routes/posts.js";
 import { createUsersRouter } from "./routes/users.js";
+import { createFriendsRouter } from "./routes/friends.js";
 
 /**
  * Masque le jeton de lecture (?token=...) avant d'écrire une URL dans les logs :
@@ -181,6 +182,8 @@ export function createApp() {
   app.use("/api/posts", createPostsRouter());
   // Profils publics et véhicules préférés. /api/users/me reste défini plus haut.
   app.use("/api/users", createUsersRouter());
+  // Escadrille : amis et invitations. Voir routes/friends.js.
+  app.use("/api/friends", createFriendsRouter());
 
   /** Gestionnaire central des erreurs connues de l'application. */
   app.use((error, _req, res, next) => {

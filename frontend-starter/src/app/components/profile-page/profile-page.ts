@@ -14,6 +14,7 @@ import { AuthService } from '../../shared/services/auth.service';
 import { PostService } from '../../shared/services/post.service';
 import { UserService } from '../../shared/services/user.service';
 import { PostCardComponent } from '../post-card/post-card';
+import { RelationButtonComponent } from '../relation-button/relation-button';
 
 export const PROFILE_PAGE_SIZE = 10;
 
@@ -48,6 +49,7 @@ export function bannerOrigin(favorites: UserProfile['favorites']): Origin[] {
     IconComponent,
     VehicleSilhouetteComponent,
     PostCardComponent,
+    RelationButtonComponent,
   ],
   templateUrl: './profile-page.html',
   styleUrl: './profile-page.css',
@@ -110,6 +112,16 @@ export class ProfilePageComponent {
       },
     });
     this.loadPosts(1);
+  }
+
+  /** Après une action d'escadrille : relation, compteurs et amis en commun à jour. */
+  reloadProfile(): void {
+    const id = this.targetId();
+    if (!id) return;
+    this.users.profile(id).subscribe({
+      next: (profile) => this.profile.set(profile),
+      error: (error: HttpErrorResponse) => console.error('[ProfilePage] Rechargement impossible', error.status),
+    });
   }
 
   loadPosts(page: number): void {

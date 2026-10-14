@@ -3,3 +3,7 @@
 .vehicle-link:hover { text-decoration: underline; }
 .page-header { margin-bottom: 1.6rem; }
 small.hint { display: block; margin: 0.2rem 0 1rem; }
+.shared { margin-top: 1.4rem; }
+.shared h2 { margin: 0 0 0.3rem; }
+.owner { color: var(--muted); font-size: 0.85rem; text-decoration: none; }
+.owner:hover { color: var(--text); }

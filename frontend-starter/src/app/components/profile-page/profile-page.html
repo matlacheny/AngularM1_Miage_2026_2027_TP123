@@ -1,6 +1,8 @@
 @if (notFound()) {
   <p class="error" role="alert">Ce profil n'existe pas.</p>
 } @else if (profile(); as p) {
+<div class="layout">
+<div class="main">
   <article class="card profile">
     <div class="banner">
       <app-flag-backdrop [origins]="banner()" fade="right" />
@@ -15,8 +17,12 @@
         }
         <p class="meta"><app-icon name="calendar" /> Membre depuis {{ memberSince() }}</p>
       </div>
-      @if (isMe() && !editing()) {
-        <button type="button" class="secondary edit-button" (click)="startEdit()"><app-icon name="pencil" /> Modifier le profil</button>
+      @if (isMe()) {
+        @if (!editing()) {
+          <button type="button" class="secondary edit-button" (click)="startEdit()"><app-icon name="pencil" /> Modifier le profil</button>
+        }
+      } @else {
+        <app-relation-button class="edit-button" [userId]="p.id" [relation]="p.relation" (changed)="reloadProfile()" />
       }
     </div>
 
@@ -41,6 +47,7 @@
 
     <div class="stats">
       <span><b>{{ p.postCount }}</b> {{ p.postCount > 1 ? 'publications' : 'publication' }}</span>
+      <span><b>{{ p.friendCount }}</b> {{ p.friendCount > 1 ? 'amis' : 'ami' }}</span>
       <span><b>{{ p.favorites.length }}</b> {{ p.favorites.length > 1 ? 'véhicules préférés' : 'véhicule préféré' }}</span>
     </div>
 
@@ -96,6 +103,38 @@
       <button type="button" class="secondary more" (click)="more()">Voir les publications plus anciennes</button>
     }
   </section>
+</div>
+
+  <aside class="aside">
+    <section class="card friends" aria-labelledby="friends-title">
+      <div class="friends-head">
+        <h2 id="friends-title">{{ isMe() ? 'Mon escadrille' : 'Amis en commun' }} <span class="count">{{ p.mutualFriendCount }}</span></h2>
+        <a routerLink="/escadrille">Voir tout</a>
+      </div>
+      @if (p.mutualFriends.length) {
+        <div class="stack" aria-hidden="true">
+          @for (f of p.mutualFriends.slice(0, 6); track f.id) {
+            <app-avatar class="mini" [name]="f.name" />
+          }
+        </div>
+      }
+      @for (f of p.mutualFriends; track f.id) {
+        <a class="friend" [routerLink]="['/users', f.id]">
+          <app-avatar [name]="f.name" />
+          <span><b>{{ f.name }}</b><small>{{ f.bio || f.location }}</small></span>
+        </a>
+      } @empty {
+        <p class="hint">
+          @if (isMe()) {
+            Votre escadrille est vide. <a routerLink="/escadrille">Inviter des membres</a>
+          } @else {
+            Aucun ami en commun.
+          }
+        </p>
+      }
+    </section>
+  </aside>
+</div>
 } @else {
   <p class="hint">Chargement…</p>
 }

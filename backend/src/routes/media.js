@@ -9,6 +9,7 @@ import { canAccess, VISIBILITIES } from "../access.js";
 import { Media, MAX_UPLOAD_SIZE, SIZE_LIMITS, mediaKind, publicMediaPipeline } from "../models/Media.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { UPLOADS } from "../uploads.js";
+import { loadFriendIds } from "../friends.js";
 
 const KIND_LABELS = { audio: "un son", image: "une photo", video: "une vidéo" };
 
@@ -64,14 +65,8 @@ async function removeStoredFile(storedName) {
   }
 }
 
-/**
- * Amis acceptés du lecteur. Toujours vide tant que l'étape « escadrille »
- * n'est pas implémentée : la visibilité "friends" se comporte alors comme
- * "private" (choix sûr par défaut).
- */
-export async function loadFriendIds(_viewerId) {
-  return new Set();
-}
+// Amis acceptés du lecteur (escadrille) : réexporté pour les autres routeurs.
+export { loadFriendIds };
 
 /**
  * Valide un vehicleId reçu du client : null/"" détache le média, sinon la
@@ -200,6 +195,63 @@ export function createMediaRouter() {
       next(error);
     }
   });
+
+  /** Médias que d'autres membres ont explicitement partagés avec moi. */
+  router.get("/shared-with-me", auth, async (req, res, next) => {
+    try {
+      const page = Math.max(1, Number(req.query.page) || 1);
+      const limit = Math.min(20, Math.max(1, Number(req.query.limit) || 10));
+      const match = { sharedWith: new Types.ObjectId(req.auth.sub) };
+      const result = await Media.aggregatePaginate(Media.aggregate(publicMediaPipeline(match)), { page, limit });
+      res.json(withStreamUrls(result, req.auth.sub));
+    } catch (error) {
+      console.error("[media] Erreur de lecture des partages reçus", error);
+      next(error);
+    }
+  });
+
+  /** Membres avec qui le propriétaire a partagé ce média. */
+  router.get("/:id/shares", auth, async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: "Média inconnu" });
+      const media = await Media.findOne({ _id: req.params.id, ownerId: req.auth.sub }).populate("sharedWith", "name");
+      if (!media) return res.status(404).json({ message: "Média inconnu" });
+      res.json(media.sharedWith.map((u) => ({ id: String(u._id), name: u.name })));
+    } catch (error) {
+      console.error("[media] Erreur de lecture des partages", error);
+      next(error);
+    }
+  });
+
+  /**
+   * Partage (PUT) ou arrête le partage (DELETE) d'un média avec un membre.
+   * On ne partage qu'avec un membre de son escadrille. L'arrêt prend effet
+   * immédiatement : les droits sont revérifiés à chaque lecture du fichier.
+   */
+  const share = (operator) => async (req, res, next) => {
+    try {
+      const { id, userId } = req.params;
+      if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(userId)) {
+        return res.status(404).json({ message: "Média inconnu" });
+      }
+      if (operator === "$addToSet" && !(await loadFriendIds(req.auth.sub)).has(String(userId))) {
+        return res.status(400).json({ message: "Vous ne pouvez partager qu'avec un membre de votre escadrille" });
+      }
+      const media = await Media.findOneAndUpdate(
+        { _id: id, ownerId: req.auth.sub },
+        { [operator]: { sharedWith: new Types.ObjectId(userId) } },
+        { new: true },
+      ).populate("sharedWith", "name");
+      if (!media) return res.status(404).json({ message: "Média inconnu" });
+      console.log(`[media] Partage ${operator === "$addToSet" ? "ajouté" : "arrêté"} : ${id} / ${userId}`);
+      res.json(media.sharedWith.map((u) => ({ id: String(u._id), name: u.name })));
+    } catch (error) {
+      console.error("[media] Erreur de partage", error);
+      next(error);
+    }
+  };
+  router.put("/:id/shares/:userId", auth, share("$addToSet"));
+  router.delete("/:id/shares/:userId", auth, share("$pull"));
 
   /** Métadonnées d'un média accessible au lecteur. */
   router.get("/:id", auth, async (req, res, next) => {

@@ -18,6 +18,12 @@
         <p class="nav-title">Navigation</p>
         <a routerLink="/feed" routerLinkActive="active"><app-icon name="home" /> Accueil</a>
         <a routerLink="/vehicles" routerLinkActive="active"><app-icon name="plane" /> Véhicules</a>
+        <a routerLink="/escadrille" routerLinkActive="active">
+          <app-icon name="users" /> Escadrille
+          @if (friends.incomingCount()) {
+            <span class="badge-count" [attr.aria-label]="friends.incomingCount() + ' invitation(s) en attente'">{{ friends.incomingCount() }}</span>
+          }
+        </a>
         <a routerLink="/profile" routerLinkActive="active"><app-icon name="user" /> Profil</a>
       </nav>
 

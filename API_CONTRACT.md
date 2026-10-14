@@ -142,3 +142,38 @@ Erreurs :
 Erreurs :
 - `400` : `6 véhicules préférés au maximum`, `Champ X invalide`, `Auteur invalide`, `Catégorie inconnue`.
 - `404` : `Utilisateur inconnu`, `Véhicule inconnu`.
+
+## Escadrille : amis, invitations et partages (TP4, étape 5)
+
+Toutes les routes exigent `Authorization: Bearer <token>`. Les listes de membres n'exposent jamais l'email.
+
+| Méthode | Route | Requête | Réponse principale |
+|---|---|---|---|
+| GET | `/friends` | JWT | `200 {friends, incoming, outgoing}` |
+| POST | `/friends/requests` | `{userId}` + JWT | `201 {status: "outgoing", requestId}` ou `200 {status: "friend"}` si ce membre m'avait déjà invité |
+| POST | `/friends/requests/:id/accept` | JWT | `200 {status: "friend", requestId}` (destinataire uniquement) |
+| DELETE | `/friends/requests/:id` | JWT | `204` (refus par le destinataire ou annulation par l'expéditeur) |
+| DELETE | `/friends/:userId` | JWT | `204` (retire un ami ; les partages entre les deux membres sont arrêtés dans les deux sens) |
+| GET | `/users?q=` | JWT | `200 [{id, name, location, bio, relation}]` (10 au plus ; `q` d'au moins 2 caractères, sinon `[]`) |
+| GET | `/media/shared-with-me?page=1&limit=10` | JWT | `Page<Media>` (médias qu'on m'a partagés, avec `url`) |
+| GET | `/media/:id/shares` | JWT | `200 [{id, name}]` (propriétaire uniquement) |
+| PUT | `/media/:id/shares/:userId` | JWT | `200 [{id, name}]` (partage avec un **ami** uniquement) |
+| DELETE | `/media/:id/shares/:userId` | JWT | `200 [{id, name}]` (arrête le partage, effet immédiat) |
+
+Formes des réponses :
+- `friends` : `[{ id, name, location, bio, since }]`.
+- `incoming` / `outgoing` : `[{ requestId, user: { id, name, location, bio }, createdAt }]`.
+- `relation` : `{ status, requestId }`, avec `status` parmi `self`, `friend`, `outgoing` (invitation envoyée), `incoming` (invitation reçue) ou `none`.
+
+Effets sur les autres routes :
+- La visibilité `friends` est maintenant réelle : les membres de l'escadrille du propriétaire y ont accès (médias, posts, fiches, profils, comptages).
+- `GET /users/:id` renvoie en plus :
+  - `friendCount` ;
+  - `relation` ;
+  - `mutualFriendCount` et `mutualFriends` (`[{id, name, location, bio}]`, 12 au plus). Sur son propre profil, ce sont tous ses amis ; sur celui d'un autre membre, les amis en commun.
+- `GET /posts/feed` accepte `scope=friends` : uniquement les posts de l'escadrille.
+
+Erreurs :
+- `400` : `Membre invalide` (soi-même ou identifiant invalide), `Vous ne pouvez partager qu'avec un membre de votre escadrille`.
+- `404` : `Membre inconnu`, `Invitation inconnue`, `Ce membre n'est pas dans votre escadrille`, `Média inconnu`.
+- `409` : `Déjà dans votre escadrille`, `Invitation déjà envoyée`.

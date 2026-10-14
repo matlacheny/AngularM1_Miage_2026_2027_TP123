@@ -41,6 +41,24 @@ export class MediaService {
     return this.http.post<StreamUrl>(`/api/media/${id}/stream-url`, {});
   }
 
+  /** Membres avec qui j'ai partagé ce média. */
+  shares(id: string) {
+    return this.http.get<{ id: string; name: string }[]>(`/api/media/${id}/shares`);
+  }
+
+  /** Partage avec un ami (true) ou arrête le partage (false). */
+  setShare(id: string, userId: string, shared: boolean) {
+    const url = `/api/media/${id}/shares/${userId}`;
+    return shared
+      ? this.http.put<{ id: string; name: string }[]>(url, {})
+      : this.http.delete<{ id: string; name: string }[]>(url);
+  }
+
+  /** Médias que d'autres membres ont partagés avec moi. */
+  sharedWithMe(page = 1, limit = 10) {
+    return this.http.get<Page<Media>>('/api/media/shared-with-me', { params: { page, limit } });
+  }
+
   delete(id: string) {
     return this.http.delete<void>(`/api/media/${id}`);
   }

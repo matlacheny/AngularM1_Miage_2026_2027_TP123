@@ -69,6 +69,7 @@ nav a {
 nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.03); }
 nav a.active { color: var(--text); font-weight: 600; background: var(--surface-2); border-left-color: var(--accent); }
 nav a.active app-icon { color: var(--accent); }
+.badge-count { margin-left: auto; padding: 0 0.5rem; color: #17130a; font-size: 0.8rem; font-weight: 700; background: var(--accent); border-radius: 999px; }
 
 .user-card {
   display: flex;

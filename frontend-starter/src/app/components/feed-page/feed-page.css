@@ -2,7 +2,7 @@
 
 .layout { display: grid; grid-template-columns: minmax(0, 660px) 350px; justify-content: center; gap: 2.2rem; align-items: start; }
 
-.feed { display: grid; gap: 1.2rem; }
+.feed { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.2rem; }
 .feed-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
 .feed-header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; }
 .hangar-link { color: var(--muted); font-size: 0.9rem; text-decoration: none; }
