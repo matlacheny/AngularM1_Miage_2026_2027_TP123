@@ -97,6 +97,39 @@ export async function searchCandidates(query, fetchImpl = fetch) {
     exlimit: "10",
     inprop: "url",
   });
+  return candidatesFrom(params, fetchImpl);
+}
+
+/**
+ * Recours : l'autocomplétion de Wikipédia (titres et redirections), la même que
+ * sa barre de recherche. Elle trouve « mig29 » (→ MiG-29), que la recherche plein
+ * texte découpe en un seul mot introuvable, mais elle ignore le contenu des
+ * articles (« leclerc » n'y donne que des personnes).
+ */
+export async function prefixCandidates(query, fetchImpl = fetch) {
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    formatversion: "2",
+    generator: "prefixsearch",
+    gpssearch: query,
+    gpslimit: "5",
+    redirects: "1",
+    prop: "pageprops|pageimages|extracts|info",
+    ppprop: "wikibase_item",
+    piprop: "thumbnail",
+    pithumbsize: "640",
+    exintro: "1",
+    explaintext: "1",
+    exsentences: "3",
+    exlimit: "5",
+    inprop: "url",
+  });
+  return candidatesFrom(params, fetchImpl);
+}
+
+/** Pages d'une requête Wikipédia, dans l'ordre de pertinence, réduites aux candidats qui ont un élément Wikidata. */
+async function candidatesFrom(params, fetchImpl) {
   const data = await getJson(`${WIKIPEDIA_API}?${params}`, fetchImpl);
   const pages = data.query?.pages ?? [];
 
@@ -190,19 +223,64 @@ export async function classifyVehicles(qids, fetchImpl = fetch) {
  * Retourne la fiche du premier candidat qui est un véhicule, ou null si aucun
  * ne l'est. Lève WikiUnavailableError si Wikipédia/Wikidata ne répond pas :
  * dans ce cas on ne sait pas, et on ne crée rien.
+ *
+ * `knownIds` : éléments Wikidata qui ont déjà une fiche. Ils sont des véhicules
+ * vérifiés : inutile de les classer à nouveau (la requête SPARQL du MiG-29, par
+ * exemple, dépasse souvent le délai). Le résultat porte alors `known: true`,
+ * sans catégorie ni pays : la fiche existante sert.
  */
-async function resolveVehicle(query, fetchImpl = fetch) {
+async function resolveVehicle(query, fetchImpl = fetch, { knownIds = new Set() } = {}) {
   console.log(`[wiki] Résolution de "${query}"`);
   const candidates = await searchCandidates(query, fetchImpl);
-  const found = await firstVehicle(candidates, fetchImpl);
+  let found = null;
+  let unavailable = null;
+  try {
+    found = await firstVehicle(candidates, fetchImpl, { knownIds, query });
+  } catch (error) {
+    if (!(error instanceof WikiUnavailableError && error.timeout)) throw error;
+    unavailable = error;
+  }
+
+  // Aucun véhicule en plein texte : l'autocomplétion, sans reclasser les candidats déjà vus.
+  if (!found) {
+    const seen = new Set(candidates.map((c) => c.wikidataId));
+    try {
+      const extra = (await prefixCandidates(query, fetchImpl)).filter((c) => !seen.has(c.wikidataId));
+      if (extra.length) {
+        console.log(`[wiki] "${query}" : recours à l'autocomplétion (${extra.length} candidat(s))`);
+        // Un candidat plein texte sans réponse reste plus pertinent : même garde-fou de désignation.
+        found = await firstVehicle(extra, fetchImpl, { knownIds, query, unanswered: unavailable ? 1 : 0 });
+      }
+    } catch (error) {
+      if (!(error instanceof WikiUnavailableError)) throw error;
+      unavailable ??= error;
+    }
+    if (!found && unavailable) throw unavailable;
+  }
   if (!found) {
     console.log(`[wiki] Aucun véhicule parmi ${candidates.length} candidat(s) pour "${query}"`);
     return null;
   }
 
   const { match, info } = found;
+  if (!info) {
+    console.log(`[wiki] "${query}" => ${match.title} (${match.wikidataId}, fiche existante)`);
+    return { ...match, name: match.title, known: true };
+  }
   console.log(`[wiki] "${query}" => ${match.title} (${match.wikidataId}, ${info.category})`);
   return { ...match, name: match.title, category: info.category, countries: [...info.countries].sort(), origins: info.origins };
+}
+
+const squash = (value) => normalizeName(value).replace(/[\s-]+/g, "");
+
+/**
+ * Le titre porte-t-il les désignations chiffrées de la recherche ? « Mig 29 »
+ * exige « 29 » : « MiG-15 » est refusé. Une recherche sans chiffre (« EBRC
+ * Jaguar ») accepte tout titre.
+ */
+export function carriesDesignation(title, query) {
+  const designations = normalizeName(query).split(/[\s/(),]+/).filter((t) => /\d/.test(t)).map(squash);
+  return designations.every((d) => squash(title).includes(d));
 }
 
 /** Requêtes Wikidata simultanées au plus (limite du service : 5 par adresse IP). */
@@ -217,11 +295,11 @@ export const PARALLEL_CLASSIFICATIONS = 5;
  * continuerait de consommer le quota de Wikidata, qui refuse ensuite (429).
  * Un candidat trop lent est ignoré ; un refus explicite (429…) interrompt tout.
  */
-async function firstVehicle(candidates, fetchImpl) {
-  let unanswered = 0;
+async function firstVehicle(candidates, fetchImpl, { knownIds = new Set(), query = "", unanswered: alreadyUnanswered = 0 } = {}) {
+  let unanswered = alreadyUnanswered;
   for (let i = 0; i < candidates.length; i += PARALLEL_CLASSIFICATIONS) {
     const batch = candidates.slice(i, i + PARALLEL_CLASSIFICATIONS);
-    const pending = batch.map((c) => classifyVehicles([c.wikidataId], fetchImpl));
+    const pending = batch.map((c) => (knownIds.has(c.wikidataId) ? Promise.resolve(null) : classifyVehicles([c.wikidataId], fetchImpl)));
     pending.forEach((p) => p.catch(() => {})); // les échecs sont lus ci-dessous, dans l'ordre
 
     // Dans l'ordre de pertinence : on répond dès que le premier véhicule est
@@ -229,7 +307,15 @@ async function firstVehicle(candidates, fetchImpl) {
     for (const [j, candidate] of batch.entries()) {
       try {
         const classes = await pending[j];
-        if (classes.has(candidate.wikidataId)) return { match: candidate, info: classes.get(candidate.wikidataId) };
+        const isVehicle = classes === null || classes.has(candidate.wikidataId);
+        // Un candidat plus pertinent n'a pas répondu : un suivant ne l'emporte que s'il
+        // porte la même désignation (« Mig 29 » ne doit pas donner le MiG-15).
+        if (isVehicle && unanswered && !carriesDesignation(candidate.title, query)) {
+          console.warn(`[wiki] « ${candidate.title} » écarté : un candidat plus pertinent n'a pas répondu`);
+          continue;
+        }
+        if (classes === null) return { match: candidate, info: null };
+        if (isVehicle) return { match: candidate, info: classes.get(candidate.wikidataId) };
       } catch (error) {
         if (!(error instanceof WikiUnavailableError && error.timeout)) throw error;
         unanswered++;

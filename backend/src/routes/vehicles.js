@@ -120,7 +120,11 @@ export function createVehiclesRouter() {
 
       let resolved;
       try {
-        resolved = await wikipedia.resolveVehicle(raw);
+        // Les éléments déjà en fiche ne sont pas reclassés par Wikidata (lent, quota limité).
+        const knownIds = new Set(await Vehicle.distinct("wikidataId"));
+        resolved = await wikipedia.resolveVehicle(raw, undefined, { knownIds });
+        // La fiche connue a disparu entre-temps : classification complète.
+        if (resolved?.known && !(await Vehicle.exists({ wikidataId: resolved.wikidataId }))) resolved = await wikipedia.resolveVehicle(raw);
       } catch (error) {
         if (error instanceof WikiUnavailableError) {
           console.error("[vehicles] Wikipédia indisponible", error);

@@ -13,6 +13,7 @@ import { UPLOADS } from "../src/uploads.js";
 import {
   WikiUnavailableError,
   buildClassificationQuery,
+  carriesDesignation,
   classifyVehicles,
   normalizeName,
   searchCandidates,
@@ -208,6 +209,73 @@ test("resolveVehicle : un candidat non classé et aucun véhicule trouvé → in
   assert.ok(error instanceof WikiUnavailableError, "503 Réessayez, et non 422 Ce n'est pas un véhicule");
 });
 
+test("resolveVehicle : un élément qui a déjà une fiche n'est pas reclassé par Wikidata", async () => {
+  // Le char (Q242398) a déjà une fiche ; les deux premiers candidats ne sont pas des véhicules.
+  const wikidata = slowWikidata({ vehicles: [] });
+  const vehicle = await wikipedia.resolveVehicle("Leclerc", wikidata.impl, { knownIds: new Set(["Q242398"]) });
+  assert.equal(vehicle.wikidataId, "Q242398");
+  assert.equal(vehicle.known, true);
+  assert.equal(wikidata.calls(), 2, "seuls les candidats inconnus sont classés");
+});
+
+test("resolveVehicle : après un candidat sans réponse, un suivant sans la même désignation est écarté", async () => {
+  // « Mig 29 » : le MiG-29 est trop lent, le MiG-15 (véhicule) ne doit pas le remplacer.
+  const pages = [
+    { index: 0, title: "Mikoyan-Gourevitch MiG-29", pageprops: { wikibase_item: "Q130681" } },
+    { index: 1, title: "Mikoyan-Gourevitch MiG-15", pageprops: { wikibase_item: "Q187377" } },
+  ];
+  const timeout = () => Object.assign(new Error("timeout"), { name: "TimeoutError" });
+  const impl = async (url) => {
+    if (String(url).includes("wikipedia.org")) return { ok: true, status: 200, json: async () => ({ query: { pages } }) };
+    if (new URL(url).searchParams.get("query").includes("VALUES ?item { wd:Q130681 }")) throw timeout();
+    return { ok: true, status: 200, json: async () => sparql([["Q187377", "aircraft", "URSS"]]) };
+  };
+  const error = await wikipedia.resolveVehicle("Mig 29", impl).catch((e) => e);
+  assert.ok(error instanceof WikiUnavailableError, "503 Réessayez, et non une fiche MiG-15");
+  assert.equal((await wikipedia.resolveVehicle("MiG", impl)).wikidataId, "Q187377", "sans chiffre dans la recherche, le suivant reste accepté");
+});
+
+/** Wikipédia simulé : plein texte et autocomplétion séparés, Wikidata qui classe `vehicles`. */
+function twoSearches({ fulltext, prefix, vehicles }) {
+  const searches = [];
+  const pages = (list) => ({ query: { pages: list.map(([title, qid], index) => ({ index, title, pageprops: { wikibase_item: qid } })) } });
+  const impl = async (url) => {
+    const u = new URL(url);
+    if (u.host.includes("wikipedia.org")) {
+      const generator = u.searchParams.get("generator");
+      searches.push(generator);
+      return { ok: true, status: 200, json: async () => pages(generator === "prefixsearch" ? prefix : fulltext) };
+    }
+    const qid = u.searchParams.get("query").match(/VALUES \?item \{ wd:(Q\d+) \}/)[1];
+    return { ok: true, status: 200, json: async () => sparql(vehicles.includes(qid) ? [[qid, "aircraft", "URSS"]] : []) };
+  };
+  return { impl, searches };
+}
+
+test("resolveVehicle : sans véhicule en plein texte, recours à l'autocomplétion (« mig29 »)", async () => {
+  const wiki = twoSearches({
+    fulltext: [["Fantôme de Kiev", "Q111015917"], ["Armée de l'air serbe", "Q1076241"]],
+    prefix: [["MiG-29 Fulcrum", "Q6826908"], ["Mikoyan-Gourevitch MiG-29", "Q130681"]],
+    vehicles: ["Q130681"],
+  });
+  const vehicle = await wikipedia.resolveVehicle("mig29", wiki.impl);
+  assert.equal(vehicle.wikidataId, "Q130681");
+  assert.deepEqual(wiki.searches, ["search", "prefixsearch"]);
+});
+
+test("resolveVehicle : un véhicule trouvé en plein texte n'interroge pas l'autocomplétion", async () => {
+  const wiki = twoSearches({ fulltext: [["Char Leclerc", "Q242398"]], prefix: [["Leclerc", "Q1"]], vehicles: ["Q242398"] });
+  assert.equal((await wikipedia.resolveVehicle("leclerc", wiki.impl)).wikidataId, "Q242398");
+  assert.deepEqual(wiki.searches, ["search"]);
+});
+
+test("carriesDesignation : les nombres de la recherche doivent figurer dans le titre", () => {
+  assert.ok(carriesDesignation("Mikoyan-Gourevitch MiG-29", "Mig 29"));
+  assert.ok(carriesDesignation("Airbus A400M Atlas", "a400m"));
+  assert.ok(!carriesDesignation("Mikoyan-Gourevitch MiG-15", "MiG-29"));
+  assert.ok(carriesDesignation("Engin blindé de reconnaissance et de combat", "EBRC Jaguar"));
+});
+
 test("resolveVehicle : un refus explicite (429) n'est pas retenté candidat par candidat", async () => {
   const { impl, calls } = fakeFetch({ search: LECLERC_SEARCH, status: 200 });
   const limited = async (url, options) => (String(url).includes("sparql") ? { ok: false, status: 429, json: async () => ({}) } : impl(url, options));
@@ -297,6 +365,7 @@ test("POST /api/vehicles : nom déjà saisi => 200 sans appeler Wikipédia", asy
 test("POST /api/vehicles : 422 si Wikipédia ne trouve aucun véhicule (rien n'est créé)", async (t) => {
   let created = false;
   stub(t, Vehicle, "findOne", async () => null);
+  stub(t, Vehicle, "distinct", async () => []);
   stub(t, Vehicle, "create", async () => (created = true));
   stub(t, wikipedia, "resolveVehicle", async () => null);
 
@@ -309,6 +378,7 @@ test("POST /api/vehicles : 422 si Wikipédia ne trouve aucun véhicule (rien n'e
 test("POST /api/vehicles : 503 si Wikipédia est indisponible (rien n'est créé)", async (t) => {
   let created = false;
   stub(t, Vehicle, "findOne", async () => null);
+  stub(t, Vehicle, "distinct", async () => []);
   stub(t, Vehicle, "create", async () => (created = true));
   stub(t, wikipedia, "resolveVehicle", async () => {
     throw new WikiUnavailableError("429");
@@ -319,9 +389,26 @@ test("POST /api/vehicles : 503 si Wikipédia est indisponible (rien n'est créé
   assert.equal(created, false);
 });
 
+test("POST /api/vehicles : les éléments déjà en fiche sont transmis au résolveur", async (t) => {
+  let options;
+  stub(t, Vehicle, "findOne", async () => null);
+  stub(t, Vehicle, "distinct", async () => ["Q130681"]);
+  stub(t, Vehicle, "exists", async () => ({ _id: VEHICLE_ID }));
+  stub(t, Vehicle, "findOneAndUpdate", async () => fakeVehicle());
+  stub(t, wikipedia, "resolveVehicle", async (_q, _f, o) => {
+    options = o;
+    return { wikidataId: "Q130681", name: "Mikoyan-Gourevitch MiG-29", known: true };
+  });
+
+  const r = await fetch(`${base}/api/vehicles`, { method: "POST", headers: json(), body: JSON.stringify({ name: "MiG-29" }) });
+  assert.equal(r.status, 200);
+  assert.deepEqual([...options.knownIds], ["Q130681"]);
+});
+
 test("POST /api/vehicles : même élément Wikidata sous un autre nom => 200 et alias ajouté", async (t) => {
   let update;
   stub(t, Vehicle, "findOne", async () => null);
+  stub(t, Vehicle, "distinct", async () => []);
   stub(t, Vehicle, "findOneAndUpdate", async (filter, u) => {
     update = { filter, u };
     return fakeVehicle();
@@ -337,6 +424,7 @@ test("POST /api/vehicles : même élément Wikidata sous un autre nom => 200 et 
 test("POST /api/vehicles : 201 avec les données Wikipédia et le créateur issu du JWT", async (t) => {
   let data;
   stub(t, Vehicle, "findOne", async () => null);
+  stub(t, Vehicle, "distinct", async () => []);
   stub(t, Vehicle, "findOneAndUpdate", async () => null);
   stub(t, Vehicle, "create", async (d) => {
     data = d;

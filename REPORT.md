@@ -799,10 +799,24 @@ Une fois le véhicule choisi, `VehiclePickerComponent` remplaçait le champ et s
 - `test/more-media.test.js` : préfixes courts collés (`bf109`, `ju87`, `renaultft`) ; titres racoleurs, destructions, accidents, maquettes « 1:72 » et clips écartés ; « tank destroyer » accepté.
 - `test/video-sounds.test.js` (nouveau, +3) : passages, démonstrations et tirs retenus ; documentaires, visites, interviews et archives écartés ; ligne de crédit reprise.
 
+### Création de fiche « MiG-29 »
+
+**Problème.** Saisir « MiG-29 » échouait (« Wikipédia indisponible ») alors que la fiche existe. Le nom saisi n'étant pas encore un alias, le serveur reclassait le MiG-29 par Wikidata ; sa hiérarchie P279 est lourde et la requête dépasse souvent le délai, d'autant plus que chaque requête lente entame le quota. Pire, avec « Mig 29 », le MiG-29 trop lent était ignoré et le résolveur retenait le candidat suivant qui est un véhicule : le **MiG-15**.
+
+**Correctifs** (`src/wikipedia.js`, `routes/vehicles.js`) :
+- **Éléments déjà en fiche** : la route transmet au résolveur les `wikidataId` existants ; un candidat connu est un véhicule déjà vérifié et n'est pas reclassé (aucune requête SPARQL). « MiG-29 » et « Mig 29 » trouvent la fiche en 0,4 s et l'alias est ajouté. Si la fiche a disparu entre-temps, la classification complète est refaite.
+- **Désignation** (`carriesDesignation`) : quand un candidat plus pertinent n'a pas répondu, un candidat suivant n'est retenu que s'il porte les nombres de la recherche (« 29 »). Sinon la réponse est « indisponible, réessayez » (503), jamais une autre fiche. Une recherche sans chiffre (« EBRC Jaguar ») garde le comportement précédent.
+
+- **Recours à l'autocomplétion** (`prefixCandidates`) : « mig29 » collé ne donnait rien, car la recherche plein texte (`generator=search`) en fait un seul mot, absent des titres (« MiG-29 » y est indexé « mig » + « 29 »). La barre de recherche de Wikipédia, elle, utilise l'autocomplétion par titres et redirections (`generator=prefixsearch`, `redirects=1`), qui trouve « Mikoyan-Gourevitch MiG-29 ». Elle n'est interrogée que si le plein texte ne donne aucun véhicule : elle ignore le contenu des articles (« leclerc » n'y donne que des personnes, le char vient du plein texte). Les candidats déjà vus ne sont pas reclassés, et le garde-fou de désignation s'applique si un candidat plein texte n'a pas répondu.
+
+Vérification réelle : « mig29 » → fiche MiG-29 par l'autocomplétion. Les essais répétés ont ensuite épuisé le quota Wikidata de notre adresse IP (requête triviale en 15 s, puis 429) : les temps de réponse mesurés à ce moment-là ne sont pas représentatifs.
+
+**Tests** (+6, `test/vehicles.test.js`) : élément déjà en fiche non reclassé ; MiG-15 écarté quand le MiG-29 ne répond pas (et accepté pour une recherche sans chiffre) ; `carriesDesignation` ; la route transmet les éléments connus ; recours à l'autocomplétion pour « mig29 » ; pas d'autocomplétion quand le plein texte trouve le véhicule. Les tests de création simulent aussi `Vehicle.distinct`.
+
 ## 14. Résultats actuels des tests
 
 | Suite | Commande | Résultat |
 |---|---|---|
-| Backend | `cd backend && npm test` | **134 tests, 134 réussis** |
+| Backend | `cd backend && npm test` | **140 tests, 140 réussis** |
 | Frontend | `cd frontend-starter && npm test` | **121 tests, 121 réussis** (23 fichiers) |
 | Build | `cd frontend-starter && npx ng build` | OK, sans avertissement |
