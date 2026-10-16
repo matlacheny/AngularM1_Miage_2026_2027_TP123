@@ -10,6 +10,7 @@
         "backfill:post-titles": "node --env-file=.env scripts/backfill-post-titles.js",
         "seed": "node --env-file=.env scripts/seed.js",
         "repair-media": "node --env-file=.env scripts/repair-media.js",
+        "video-sounds": "node --env-file=.env scripts/video-sounds.js",
         "more-media": "node --env-file=.env scripts/more-media.js"
     },
     "dependencies": {

@@ -33,6 +33,33 @@ export const WRONG_MEDIA = [
   "Axalp 08.webm", // meeting aérien, Alouette III non identifiable
 ];
 
+/**
+ * Vidéos proposées par more-media et écartées à la relecture (jamais importées) :
+ * autre appareil, maquette, clip musical, images de combat ou titre racoleur.
+ */
+export const REJECTED_VIDEOS = [
+  "youtube-qlw3FNOU4iU.mp4", // Mirage III : un autre prototype franco-allemand
+  "youtube--xiwgBdWPL4.mp4", // Mirage III : un Mirage 2000
+  "youtube-0yNWzVUDVQ0.mp4", // Mirage III : un Mirage 2000
+  "youtube-pVgSlaNXHeg.mp4", // Mirage III : un Mirage 2000
+  "youtube-69HBWTQ1ay8.mp4", // Mirage III : un Mirage F1
+  "youtube-1mk3In59980.mp4", // Mystère IV : maquette en papier
+  "youtube-Tb6zedWfHeg.mp4", // Mystère IV : combat aérien non sourcé
+  "youtube-_xvzI6AcYHs.mp4", // F-14 : clip musical
+  "youtube-q-afVWj9pC8.mp4", // F-14 : clip musical
+  "youtube-W16JVh40npM.mp4", // Challenger 2 : titre racoleur, combat invérifiable
+  "youtube-8w413NsaxvQ.mp4", // Challenger 2 : titre racoleur, combat invérifiable
+  "youtube-Q7FUjVHx46c.mp4", // Leopard 2 : images de combat
+  "youtube-SY-w6Dbil04.mp4", // T-90 : un M2 Bradley, images de combat
+  "youtube-La4D4e7-fK8.mp4", // Challenger 2 : sujet sur le Challenger 3
+  "Navio brasileiro ajuda nas buscas por avião chileno.webm", // C-130 : un navire
+  "Improved Ribbon Bridge built by 341st Engineer General Service Regiment (11-06-2018).webm", // M2 Bradley : un pont flottant
+  "POTUS announces 21 brand new F-15EX Eagle II Fighter Jets..webm", // F-15 : annonce politique
+  "Mig29 west downing drone.webm", // MiG-29 : images de combat
+  "На Київщині прикордонники, спільно із побратимами зі ЗС України, дістали на сушу вертоліт рашистів.webm", // Mi-24 : une épave
+  "Berita Film di Djawa nr. 18.webm", // A6M : actualités sans Zero identifiable
+];
+
 /** Médias corrects mais rattachés à la mauvaise fiche. */
 export const RETAGGED_MEDIA = [
   // EBRC Jaguar (2010-), pas le Panhard EBR (1950).
@@ -105,6 +132,20 @@ export const FREESOUND_SOUNDS = [
   { id: 143561, vehicle: "North American P-51 Mustang", title: "P-51 Mustang : décollage" },
   { id: 437907, vehicle: "North American F-86 Sabre", title: "F-86 Sabre : passage rapide" },
   { id: 437873, vehicle: "North American F-86 Sabre", title: "Deux F-86 Sabre au décollage" },
+  // Ajouts du 16/10 : titre et description relus un par un (homonymes et enregistrements mêlant plusieurs appareils écartés).
+  { id: 324751, vehicle: "Avro Vulcan", title: "Vulcan : passage lors de son dernier vol" },
+  { id: 435676, vehicle: "Aérospatiale AS532 Cougar", title: "Quatre Cougar néerlandais au-dessus de Waalre" },
+  { id: 162247, vehicle: "BAe Hawk", title: "Hawk des Red Arrows : passage bas à Farnborough" },
+  { id: 105222, vehicle: "BAe Hawk", title: "Deux Hawk : roulage et décollage" },
+  { id: 437931, vehicle: "Boeing B-52 Stratofortress", title: "B-52 : passage tout près" },
+  { id: 437930, vehicle: "Boeing B-52 Stratofortress", title: "B-52 : passage" },
+  { id: 104883, vehicle: "McDonnell Douglas F-4 Phantom II", title: "F-4 Phantom : roulage, point fixe et décollage en postcombustion" },
+  { id: 64490, vehicle: "Panavia Tornado", title: "Tornado de la RAF : passage au loin" },
+  { id: 349871, vehicle: "Panavia Tornado", title: "Tornado : vol à basse altitude au-dessus du Brandebourg" },
+  { id: 274369, vehicle: "Saab JAS 39 Gripen", title: "Gripen sud-africain : passage" },
+  { id: 274302, vehicle: "Saab JAS 39 Gripen", title: "Gripen : bombardement simulé à Swartkops" },
+  { id: 161895, vehicle: "Leopard 2", title: "Leopard 2A4 : moteur au ralenti" },
+  { id: 161878, vehicle: "Leopard 2", title: "Leopard 2 : passage tout près, changements de vitesse" },
 ];
 
 /**

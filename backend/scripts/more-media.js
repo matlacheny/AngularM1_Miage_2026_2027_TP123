@@ -12,7 +12,7 @@ import { Post } from "../src/models/Post.js";
 import { Comment } from "../src/models/Comment.js";
 import { UPLOADS } from "../src/uploads.js";
 import { normalizeName } from "../src/wikipedia.js";
-import { WRONG_MEDIA } from "./curated-media.js";
+import { REJECTED_VIDEOS, WRONG_MEDIA } from "./curated-media.js";
 
 /*
  * Complète chaque fiche véhicule jusqu'à N photos et M vidéos (base LOCALE uniquement :
@@ -53,7 +53,9 @@ const COMMENTS = ["Superbe !", "Magnifique 👏", "Quelle machine…", "Merci du
 // Fichiers d'articles qui ne montrent pas le véhicule : cartes, drapeaux, logos, schémas…
 const NOT_A_PHOTO = /flag|drapeau|logo|map|carte|icon|roundel|cocarde|insignia|insigne|emblem|blason|coat.of.arms|badge|patch|seal|diagram|schema|sch[ée]ma|3.?view|silhouette|line.?drawing|plan |cutaway|profile.drawing|signature|portrait|commons-|wiki|question.book|ambox|edit-clear|crystal|nuvola|disambig|stub/i;
 // Vidéos YouTube écartées : jeux, simulateurs, maquettes, compilations.
-const NOT_REAL = /war ?thunder|world of (tanks|warplanes|warships)|\bwot\b|\bdcs\b|arma ?3|battlefield|gameplay|simulat|msfs|flight sim|\bgame\b|\blego\b|\brc\b|model kit|scale model|maquette|\btoy\b|1\/(35|48|72|144)|top \d+|compilation|vs\.?\s|versus|animation|\bcgi\b|\b3d\b|but you.?re|\bmeme\b|\bpov\b/i;
+const NOT_REAL = /war ?thunder|world of (tanks|warplanes|warships)|\bwot\b|\bdcs\b|arma ?3|battlefield|gameplay|simulat|msfs|flight sim|\bgame\b|\blego\b|\brc\b|model kit|scale model|maquette|\btoy\b|paper model|music video|1[\/:](32|35|48|72|144)|revell|airfix|tamiya|baubericht|top \d+|compilation|vs\.?\s|versus|animation|\bcgi\b|\b3d\b|but you.?re|\bmeme\b|\bpov\b/i;
+// Titres racoleurs, images de guerre et accidents : invérifiables ou déplacés dans une galerie.
+const WAR_BAIT = /then (this|something)|terrified|obliterat|sucks|\bjunk\b|\bdestroy(s|ed|ing)?\b|\bkill|\bhit\b|captur|surround|ukrain|putin|front.?lines?|war on tape|war in |\bcrash/i;
 // Mots trop courants pour identifier un véhicule dans un titre YouTube.
 const GENERIC = new Set(["general", "dynamics", "dassault", "breguet", "dornier", "lockheed", "martin", "mcdonnell", "douglas", "boeing", "northrop", "grumman",
   "north", "american", "bell", "sikorsky", "airbus", "helicopters", "aerospatiale", "eurocopter", "mikoyan", "gurevich", "mil", "kamov", "tupolev", "ilyushin", "uralvagonzavod", "sukhoi", "saab", "bae", "systems",
@@ -198,10 +200,23 @@ async function youtubeSearch(query, limit) {
 
 // --- Sélection ------------------------------------------------------------------
 
-/** Mots qui identifient le véhicule dans un titre (« F-16 », « Falcon », « Leopard »…). */
+/**
+ * Mots qui identifient le véhicule dans un titre (« F-16 », « Falcon », « Leopard »…).
+ * Un préfixe d'une ou deux lettres est collé à son voisin, sinon il serait perdu :
+ * « Bf 109 » → « bf109 », « Renault FT » → « renaultft » (mentions ignore les espaces).
+ */
 export function keyTokens(label) {
-  return normalizeName(label).split(/[\s/(),]+/).map((t) => t.replace(/[^a-z0-9-]/g, ""))
-    .filter((t) => t && !GENERIC.has(t) && (t.length >= 3 || /\d/.test(t)) && !/^\d+$/.test(t));
+  const words = normalizeName(label).split(/[\s/(),]+/).map((t) => t.replace(/[^a-z0-9-]/g, "")).filter(Boolean);
+  const tokens = [];
+  for (let i = 0; i < words.length; i++) {
+    if (/^[a-z]{1,2}$/.test(words[i])) {
+      if (/^\d+$/.test(words[i + 1] ?? "")) tokens.push(words[i] + words[++i]);
+      else if (i > 0) tokens.push(words[i - 1] + words[i]);
+      continue;
+    }
+    if (!GENERIC.has(words[i]) && (words[i].length >= 3 || /\d/.test(words[i])) && !/^\d+$/.test(words[i])) tokens.push(words[i]);
+  }
+  return tokens;
 }
 
 /** Le titre cite-t-il le véhicule ? Comparaison sans accents, tirets ni espaces (« F16 » = « F-16 »). */
@@ -211,9 +226,9 @@ export function mentions(title, tokens) {
   return tokens.some((t) => haystack.includes(squash(t)));
 }
 
-/** Vidéo YouTube acceptable : durée raisonnable, véhicule cité, pas un jeu ni une maquette. */
+/** Vidéo YouTube acceptable : durée raisonnable, véhicule cité, ni jeu, ni maquette, ni titre racoleur. */
 export function isRealVideo(video, tokens) {
-  return video.duration >= 20 && video.duration <= 1800 && !NOT_REAL.test(video.title) && mentions(video.title, tokens);
+  return video.duration >= 20 && video.duration <= 1800 && !NOT_REAL.test(video.title) && !WAR_BAIT.test(video.title) && mentions(video.title, tokens);
 }
 
 /** Photo exploitable : bitmap assez grand, au format accepté, qui n'est ni carte, ni drapeau, ni logo. */
@@ -252,7 +267,8 @@ async function videoCandidates(vehicle, info, withFfmpeg) {
   const commons = lists.flat().filter(Boolean).map((f) => toCommonsVideo(f, withFfmpeg)).filter(Boolean);
   if (!withFfmpeg) return unique(commons);
 
-  const tokens = keyTokens(info.label ?? vehicle.name);
+  // Nom de la fiche et libellé Wikidata : ce dernier peut être dans une autre langue (« Gazeller »).
+  const tokens = [...new Set([...keyTokens(vehicle.name), ...keyTokens(info.label ?? "")])];
   const query = `${info.label ?? vehicle.name} ${YOUTUBE_KEYWORD[vehicle.category] ?? ""}`.trim();
   const found = (await cached(`youtube:${query}`, () => youtubeSearch(query, 20))) ?? [];
   const youtube = found.filter((v) => isRealVideo(v, tokens)).map((v) => ({
@@ -265,7 +281,7 @@ async function videoCandidates(vehicle, info, withFfmpeg) {
 
 function unique(items) {
   const seen = new Set();
-  const wrong = new Set(WRONG_MEDIA);
+  const wrong = new Set([...WRONG_MEDIA, ...REJECTED_VIDEOS]);
   return items.filter((i) => !wrong.has(i.originalName) && !seen.has(i.originalName) && seen.add(i.originalName));
 }
 

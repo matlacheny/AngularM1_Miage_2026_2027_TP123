@@ -10,6 +10,14 @@ test("mots-clés : constructeurs et mots génériques retirés", () => {
   assert.deepEqual(keyTokens("Mil Mi-24"), ["mi-24"]);
 });
 
+test("mots-clés : un préfixe court est collé à son voisin au lieu d'être perdu", () => {
+  assert.deepEqual(keyTokens("Messerschmitt Bf 109"), ["bf109"]);
+  assert.deepEqual(keyTokens("Junkers Ju 87"), ["ju87"]);
+  assert.deepEqual(keyTokens("Char Renault FT"), ["renaultft"]);
+  assert.ok(mentions("Messerschmitt Bf-109 G flypast", keyTokens("Messerschmitt Bf 109")));
+  assert.ok(mentions("Renault FT-17 at Saumur", keyTokens("Char Renault FT")));
+});
+
 test("titre : le véhicule est reconnu sans tirets ni accents", () => {
   assert.ok(mentions("F16 demo at RIAT", keyTokens("General Dynamics F-16 Fighting Falcon")));
   assert.ok(!mentions("General Dynamics annual report", keyTokens("General Dynamics F-16 Fighting Falcon")));
@@ -21,6 +29,14 @@ test("vidéos YouTube : jeux, maquettes, mèmes et durées extrêmes écartés",
   assert.ok(isRealVideo(video("Leopard 2A7 live firing"), tokens));
   assert.ok(!isRealVideo(video("War Thunder Leopard 2 gameplay"), tokens));
   assert.ok(!isRealVideo(video("Leopard 2 1/35 model kit build"), tokens));
+  assert.ok(!isRealVideo(video("Leopard 2 paper model"), tokens));
+  assert.ok(!isRealVideo(video("Baubericht Leopard 2 v Revell im Maßstab 1:72"), tokens));
+  assert.ok(!isRealVideo(video("Leopard 2 Music Video"), tokens));
+  assert.ok(!isRealVideo(video("Russia Hit Leopard 2 FOUR TIMES, Then Something Incredible Happened"), tokens));
+  assert.ok(!isRealVideo(video("Leopard 2 destroyed near the front lines"), tokens));
+  assert.ok(!isRealVideo(video("Leopard 2 crash at the range"), tokens));
+  assert.ok(isRealVideo(video("Leopard 2 Tank Documentary"), tokens));
+  assert.ok(isRealVideo(video("Leopard 2 tank destroyer variant"), tokens), "« tank destroyer » est une catégorie de blindé");
   assert.ok(!isRealVideo(video("Panzermensch but you're a Leopard II Commander"), tokens));
   assert.ok(!isRealVideo(video("Leopard 2 full documentary", 7200), tokens));
   assert.ok(!isRealVideo(video("T-72 firing"), tokens));

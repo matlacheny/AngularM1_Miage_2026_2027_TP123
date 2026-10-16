@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -10,7 +11,8 @@ import path from "node:path";
  * Vorbis, et une piste muette (vidéo sans son) est refusée.
  */
 
-const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
+// FFMPEG_PATH, sinon l'outil livré dans data/tools (comme more-media), sinon le PATH.
+const FFMPEG = process.env.FFMPEG_PATH || (existsSync("data/tools/ffmpeg.exe") ? path.resolve("data/tools/ffmpeg.exe") : "ffmpeg");
 const MAX_SECONDS = 120;
 const SILENCE_DB = -55; // volume moyen en dessous duquel la piste est considérée muette
 
@@ -47,20 +49,27 @@ export function meanVolume(stderr) {
  */
 export async function extractAudio(url, outDir, fetchOptions = {}) {
   const tmp = path.join(os.tmpdir(), `afterburner-${crypto.randomUUID()}`);
-  const storedName = `${crypto.randomUUID()}.ogg`;
-  const out = path.join(outDir, storedName);
   try {
     const response = await fetch(url, fetchOptions);
     if (!response.ok) throw new Error(`téléchargement ${response.status}`);
     await fs.writeFile(tmp, Buffer.from(await response.arrayBuffer()));
-    await run(["-y", "-v", "error", "-i", tmp, "-vn", "-t", String(MAX_SECONDS), "-ac", "2", "-c:a", "libvorbis", "-q:a", "5", out]);
+    return await audioFromFile(tmp, outDir);
+  } finally {
+    await fs.rm(tmp, { force: true });
+  }
+}
+
+/** Bande son d'une vidéo déjà sur le disque, dans `outDir` : { storedName, size }. Même refus des pistes muettes. */
+export async function audioFromFile(input, outDir) {
+  const storedName = `${crypto.randomUUID()}.ogg`;
+  const out = path.join(outDir, storedName);
+  try {
+    await run(["-y", "-v", "error", "-i", input, "-vn", "-t", String(MAX_SECONDS), "-ac", "2", "-c:a", "libvorbis", "-q:a", "5", out]);
     const volume = meanVolume(await run(["-i", out, "-af", "volumedetect", "-f", "null", "-"]));
     if (volume === null || volume < SILENCE_DB) throw new Error(`piste muette (${volume} dB)`);
     return { storedName, size: (await fs.stat(out)).size };
   } catch (error) {
     await fs.rm(out, { force: true });
     throw new Error(/does not contain any stream|Output file .* does not contain/.test(error.message) ? "vidéo sans piste audio" : error.message);
-  } finally {
-    await fs.rm(tmp, { force: true });
   }
 }

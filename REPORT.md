@@ -581,7 +581,7 @@ Les tests existants ont été adaptés aux nouvelles requêtes (escadrille au d�
 - des posts répartis sur 6 mois (plus nombreux récemment, publiés entre 8 h et 21 h ; 80 % publics), avec J'aime et commentaires datés après le post ;
 - de **vrais fichiers sous licence libre**, cités dans chaque post (auteur, licence, lien).
 
-État actuel de la base : **175 médias** (photos, vidéos et 45 sons), **21 véhicules avec au moins un son**.
+État actuel de la base (16/10) : **428 médias** (183 photos, 153 vidéos, 92 sons) ; **les 72 fiches ont une vidéo, 63 ont un son** (voir section 13).
 
 ### Choix des médias
 
@@ -771,10 +771,38 @@ Une fois le véhicule choisi, `VehiclePickerComponent` remplaçait le champ et s
 - Backend (+2, `test/posts.test.js`) : `postTitle` (titre choisi, titre du média, première ligne du texte, coupure à 120) ; `POST /posts` enregistre le titre, reprend celui du média s'il manque et refuse 121 caractères. Les tests de `searchCondition` et de `GET /posts/feed?q=` vérifient en plus la condition sur l'intitulé.
 - Frontend (+3) : le compositeur envoie le titre au post et au média puis le remet à zéro ; sans titre, aucun titre n'est envoyé ; la carte affiche l'intitulé, et rien sans intitulé.
 
+### Vidéos et sons pour toutes les fiches
+
+**Point de départ** : sur 72 fiches, 56 n'avaient aucune vidéo et 50 aucun son (40 ni l'un ni l'autre). **Arrivée** : 0 fiche sans vidéo, 9 sans son.
+
+**Vidéos** (`npm run more-media -- --images 0 --videos 2`) : deux par fiche, Commons d'abord puis YouTube. Chaque sélection a d'abord été simulée (`--dry-run`) et relue titre par titre. La relecture a fait évoluer le script :
+- **`keyTokens`** perdait les désignations courtes : « Bf 109 », « Ju 87 », « Me 262 » ou « Renault FT » ne donnaient aucun mot-clé, donc aucune vidéo. Un préfixe d'une ou deux lettres est maintenant collé à son voisin (`bf109`, `renaultft`).
+- **Libellé Wikidata étranger** : la Gazelle était cherchée sous « Gazeller ». Les mots-clés viennent maintenant du nom de la fiche et du libellé.
+- **`WAR_BAIT`** : titres racoleurs (« Then THIS Happened », « Putin didn't expect… »), images de guerre en Ukraine et accidents sont écartés. Pour le Challenger 2 et le T-90, presque tous les résultats YouTube en relevaient.
+- **`NOT_REAL`** reconnaît aussi les maquettes (« 1:72 », Revell, Airfix, Tamiya), les maquettes en papier et les clips musicaux.
+- **`REJECTED_VIDEOS`** (`curated-media.js`) : 20 vidéos écartées à la main (Mirage 2000 et F1 proposés pour le Mirage III, pont flottant pour le M2 Bradley, épave pour le Mi-24, annonce politique pour le F-15EX…).
+
+117 vidéos importées. 9 vidéos validées n'ont pas pu être téléchargées (erreur ffmpeg à la découpe) et le script a pris la suivante ; ces remplaçantes ont été relues après coup. Une maquette Revell passée ainsi a été supprimée.
+
+**Incident.** En repassant les vidéos importées au filtre corrigé, la première version de `WAR_BAIT` (`destro`) a supprimé « AMX-13 Light Tank Destroyer! », une vidéo légitime d'un import précédent (« tank destroyer » est une catégorie de blindé). Le motif est devenu `\bdestroy(s|ed|ing)?\b`, un test le vérifie, et la vidéo a été réimportée ; ses J'aime et commentaires de démonstration n'ont pas été recréés.
+
+**Sons, trois sources par ordre de préférence :**
+1. **Freesound, licences libres** : 13 sons pour 8 fiches (Vulcan, Cougar, Hawk, B-52, F-4, Tornado, Gripen, Leopard 2), ajoutés à `FREESOUND_SOUNDS` puis importés par `npm run repair-media`. La recherche par nom renvoie surtout des homonymes (boxeurs, tours Atlas, moustiques, drone « Phantom ») : chaque son a été retenu sur son titre et sa description. Écartés aussi : un Mirage 2000 proposé pour les Mirage III et IV, un passage mêlant Lancaster, Hurricane et Spitfire, un « Su-57 Howl » d'origine invérifiable.
+2. **Bande son des vidéos importées** (`npm run video-sounds [-- --dry-run]`, nouveau script `scripts/video-sounds.js`) : 13 fiches. Seules les vidéos de passage, de démonstration, de décollage ou de tir sont retenues (`isSpottingVideo`) ; documentaires, visites, interviews, présentations (« Meet the… ») et films d'archive (années 1900-1940, souvent sonorisés après coup) sont écartés, car on n'y entend qu'une voix off ou de la musique. L'extraction lit la vidéo déjà sur le disque (`audioFromFile`, extrait de `video-audio.js`) et refuse une piste muette. Le post cite la source de la vidéo.
+3. **Enregistrements YouTube ciblés** (« engine start », « flyby », « takeoff ») pour 20 fiches dont toutes les vidéos étaient commentées : seule la piste audio est gardée (2 minutes au plus). Écartés : homonymes « Atlantic City Airshow » (Breguet Atlantic), vidéo sans son (Mystère IV), extrait de *Band of Brothers* (Mosquito), images d'archives sonorisées (Ju 87, Super Frelon), probable capture de jeu (AMX-10 RC).
+
+**Restent sans son** (aucun enregistrement fiable trouvé) : Mystère IV, Breguet Atlantic, MS.406, Super Frelon, B1, M26 Pershing, Ju 87, Boxer, EBRC Jaguar.
+
+**Licences.** Les vidéos et sons YouTube (« tous droits réservés », crédités dans chaque post) ne conviennent qu'à la base **locale** de démonstration, comme le reste de `more-media`. Les sons Freesound (CC0, CC BY) et les vidéos Commons sont libres.
+
+**Tests** (+4 backend) :
+- `test/more-media.test.js` : préfixes courts collés (`bf109`, `ju87`, `renaultft`) ; titres racoleurs, destructions, accidents, maquettes « 1:72 » et clips écartés ; « tank destroyer » accepté.
+- `test/video-sounds.test.js` (nouveau, +3) : passages, démonstrations et tirs retenus ; documentaires, visites, interviews et archives écartés ; ligne de crédit reprise.
+
 ## 14. Résultats actuels des tests
 
 | Suite | Commande | Résultat |
 |---|---|---|
-| Backend | `cd backend && npm test` | **130 tests, 130 réussis** |
+| Backend | `cd backend && npm test` | **134 tests, 134 réussis** |
 | Frontend | `cd frontend-starter && npm test` | **121 tests, 121 réussis** (23 fichiers) |
 | Build | `cd frontend-starter && npx ng build` | OK, sans avertissement |

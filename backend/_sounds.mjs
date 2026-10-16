@@ -12,7 +12,8 @@ const vehicles = await db.collection("vehicles").aggregate([
 const out = {};
 for (const v of vehicles) {
   const tokens = keyTokens(v.name);
-  const queries = [...new Set([tokens.join(" "), tokens[0]].filter(Boolean))];
+  const variants = tokens.flatMap((t) => (t.includes("-") ? [`"${t.replace(/-/g, " ")}"`, t.replace(/-/g, "")] : [t]));
+  const queries = [...new Set([tokens.join(" "), ...variants].filter(Boolean))].slice(0, 4);
   const seen = new Map();
   for (const q of queries) {
     const params = new URLSearchParams({ token: KEY, query: q, page_size: "30", filter: 'duration:[3 TO 400]',
