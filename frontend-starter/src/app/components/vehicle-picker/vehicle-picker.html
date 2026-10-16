@@ -1,11 +1,14 @@
 <div class="picker">
   @if (selected(); as vehicle) {
-    <div class="chosen">
-      <span>
-        <b>{{ vehicle.name }}</b>
-        <small>{{ labels[vehicle.category] }}</small>
-      </span>
-      <button type="button" class="ghost" (click)="clear()" [attr.aria-label]="'Retirer ' + vehicle.name">✕</button>
+    <div class="field">
+      Véhicule
+      <div class="chosen">
+        <span class="chosen-name">
+          <b>{{ vehicle.name }}</b>
+          <small>{{ labels[vehicle.category] }}</small>
+        </span>
+        <button type="button" class="ghost" (click)="clear()" [attr.aria-label]="'Retirer ' + vehicle.name">✕</button>
+      </div>
     </div>
   } @else {
     <label>

@@ -121,7 +121,7 @@ export class PostCardComponent {
 
   remove(): void {
     this.menuOpen.set(false);
-    if (!confirm('Supprimer cette publication ? Le média reste dans votre hangar.')) return;
+    if (!confirm('Supprimer cette publication ? Son média sera supprimé partout, hangar compris.')) return;
     this.posts.delete(this.state().id).subscribe({
       next: () => this.deleted.emit(this.state().id),
       error: (error: HttpErrorResponse) => {

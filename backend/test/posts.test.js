@@ -187,6 +187,27 @@ test("GET /api/posts/:id : 404 si le post n'est pas visible par le lecteur", asy
   assert.ok(captured.pipeline[0].$match.$or, "filtre d'accès appliqué");
 });
 
+test("DELETE /api/posts/:id : supprime aussi le média s'il n'est plus publié", async (t) => {
+  const mediaId = new mongoose.Types.ObjectId(MEDIA_ID);
+  let stillPublished = false;
+  let removedMedia;
+  stub(t, Post, "findOneAndDelete", async () => ({ id: POST_ID, _id: new mongoose.Types.ObjectId(POST_ID), mediaId }));
+  stub(t, Comment, "deleteMany", async () => ({}));
+  stub(t, Post, "exists", async () => stillPublished);
+  stub(t, Media, "findOneAndDelete", (f) => {
+    removedMedia = f;
+    return { select: async () => ({ id: MEDIA_ID, storedName: "absent.jpg" }) };
+  });
+
+  stillPublished = true;
+  assert.equal((await fetch(`${base}/api/posts/${POST_ID}`, { method: "DELETE", headers: bearer() })).status, 204);
+  assert.equal(removedMedia, undefined, "média gardé : un autre post le publie");
+
+  stillPublished = false;
+  assert.equal((await fetch(`${base}/api/posts/${POST_ID}`, { method: "DELETE", headers: bearer() })).status, 204);
+  assert.deepEqual([String(removedMedia._id), removedMedia.ownerId], [MEDIA_ID, USER]);
+});
+
 test("DELETE /api/posts/:id : auteur uniquement, commentaires supprimés", async (t) => {
   let filter;
   let removedComments;

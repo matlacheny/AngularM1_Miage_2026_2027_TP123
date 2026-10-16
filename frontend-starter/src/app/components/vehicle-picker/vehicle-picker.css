@@ -1,6 +1,9 @@
 :host { display: block; }
 .picker { display: grid; gap: 0.4rem; }
-.chosen { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.5rem 0.7rem; background: var(--surface-2); border: 1px solid var(--accent); border-radius: 10px; }
+.field { display: grid; gap: 0.4rem; margin: 0.8rem 0; color: var(--muted); font-size: 0.9rem; }
+.chosen { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.3rem 0.3rem 0.3rem 0.9rem; color: var(--text); font-size: 1rem; background: var(--surface-2); border: 1px solid var(--accent); border-radius: 10px; }
+.chosen-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chosen button { padding: 0.45rem 0.6rem; line-height: 1; }
 .chosen small { margin-left: 0.4rem; }
 .suggestions { list-style: none; margin: 0; padding: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .suggestions li + li { border-top: 1px solid var(--border); }

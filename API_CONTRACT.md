@@ -89,7 +89,7 @@ Toutes les routes exigent `Authorization: Bearer <token>`. Un post invisible pou
 | GET | `/posts/feed?page=1&limit=10&others=` | JWT | `Page<Post>` (posts visibles, plus récents d'abord) |
 | GET | `/posts/:id` | JWT | `200 Post` |
 | POST | `/posts` | `{text?, mediaId?, vehicleId?, visibility?}` + JWT | `201 Post` |
-| DELETE | `/posts/:id` | JWT | `204` (auteur uniquement ; supprime aussi les commentaires, pas le média) |
+| DELETE | `/posts/:id` | JWT | `204` (auteur uniquement ; supprime aussi les commentaires et le média, sauf si un autre post le publie) |
 | PUT | `/posts/:id/like` | JWT | `200 {likeCount, likedByMe}` |
 | DELETE | `/posts/:id/like` | JWT | `200 {likeCount, likedByMe}` |
 | GET | `/posts/:id/comments?page=1&limit=20` | JWT | `Page<Comment>` (plus anciens d'abord) |

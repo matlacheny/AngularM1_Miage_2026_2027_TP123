@@ -53,7 +53,7 @@ const upload = multer({
 });
 
 /** Supprime un fichier du disque en journalisant un éventuel échec. */
-async function removeStoredFile(storedName) {
+export async function removeStoredFile(storedName) {
   const filePath = path.join(UPLOADS, storedName);
   try {
     await fsPromises.unlink(filePath);

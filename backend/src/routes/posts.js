@@ -8,7 +8,7 @@ import { Post, publicPostPipeline } from "../models/Post.js";
 import { User } from "../models/User.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { normalizeName } from "../wikipedia.js";
-import { escapeRegExp, loadFriendIds, streamUrlFor } from "./media.js";
+import { escapeRegExp, loadFriendIds, removeStoredFile, streamUrlFor } from "./media.js";
 
 const MEDIA_KINDS = ["audio", "image", "video"];
 
@@ -164,13 +164,24 @@ export function createPostsRouter() {
     }
   });
 
-  /** Supprime un post et ses commentaires (auteur uniquement). Le média reste dans le hangar. */
+  /**
+   * Supprime un post, ses commentaires et son média (auteur uniquement) : la
+   * publication disparaît partout, fiche véhicule et hangar compris. Le média
+   * est gardé seulement si un autre post le publie encore.
+   */
   router.delete("/:id", auth, async (req, res, next) => {
     try {
       if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: "Publication inconnue" });
       const post = await Post.findOneAndDelete({ _id: req.params.id, ownerId: req.auth.sub });
       if (!post) return res.status(404).json({ message: "Publication inconnue" });
       await Comment.deleteMany({ postId: post._id });
+      if (post.mediaId && !(await Post.exists({ mediaId: post.mediaId }))) {
+        const media = await Media.findOneAndDelete({ _id: post.mediaId, ownerId: req.auth.sub }).select("+storedName");
+        if (media) {
+          await removeStoredFile(media.storedName);
+          console.log(`[posts] Média ${media.id} supprimé avec le post`);
+        }
+      }
       console.log(`[posts] Post supprimé : ${post.id}`);
       res.status(204).end();
     } catch (error) {
