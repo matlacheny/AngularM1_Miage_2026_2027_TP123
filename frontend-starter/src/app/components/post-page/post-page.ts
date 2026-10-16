@@ -10,7 +10,14 @@ import { PostCardComponent } from '../post-card/post-card';
 @Component({
   imports: [RouterLink, IconComponent, PostCardComponent],
   template: `
-    <a class="back-link" routerLink="/feed"><app-icon name="arrow-left" /> Fil d'actualité</a>
+    @if (vehicle(); as vehicleId) {
+      <a class="back-link" [routerLink]="['/vehicles', vehicleId]">
+        <app-icon name="arrow-left" />
+        {{ post()?.vehicle?.id === vehicleId ? post()!.vehicle!.name : 'Fiche du véhicule' }}
+      </a>
+    } @else {
+      <a class="back-link" routerLink="/feed"><app-icon name="arrow-left" /> Fil d'actualité</a>
+    }
     @if (post(); as p) {
       <app-post-card [post]="p" (deleted)="onDeleted()" />
     } @else if (notFound()) {
@@ -26,6 +33,8 @@ export class PostPageComponent {
   private readonly router = inject(Router);
 
   readonly id = input.required<string>();
+  /** `?vehicle=` : ouvert depuis cette fiche véhicule, le retour y ramène (sinon le fil). */
+  readonly vehicle = input<string>();
   readonly post = signal<Post | null>(null);
   readonly notFound = signal(false);
 
@@ -47,6 +56,7 @@ export class PostPageComponent {
   }
 
   onDeleted(): void {
-    void this.router.navigateByUrl('/feed');
+    const vehicle = this.vehicle();
+    void this.router.navigateByUrl(vehicle ? `/vehicles/${vehicle}` : '/feed');
   }
 }

@@ -69,7 +69,6 @@
 .vehicle-card:hover, .vehicle-card:focus-visible { transform: translateY(-2px); border-color: var(--accent); }
 
 .visual { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: var(--surface-2); }
-.silhouette { position: absolute; inset: 14% 12% 8%; }
 .rank {
   position: absolute;
   top: 0.8rem;

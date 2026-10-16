@@ -41,7 +41,7 @@ const fakeUser = (favorites = []) =>
   new User({ _id: OTHER, name: "Lucas Bernard", email: "lucas@example.com", passwordHash: "x", bio: "Spotter", location: "Salon-de-Provence", favoriteVehicleIds: favorites });
 
 const fakeVehicle = (id, name) =>
-  new Vehicle({ _id: id, wikidataId: "Q1", name, category: "aircraft", countries: ["France"], origins: [{ name: "France", code: "fr", flagUrl: "f.png" }], wikipediaUrl: "w", createdBy: USER });
+  new Vehicle({ _id: id, wikidataId: "Q1", name, category: "aircraft", countries: ["France"], origins: [{ name: "France", code: "fr", flagUrl: "f.png" }], imageUrl: `https://upload.wikimedia.org/${name}.jpg`, wikipediaUrl: "w", createdBy: USER });
 
 test("schéma User : biographie et ville bornées, favoris exposés en chaînes", () => {
   const user = new User({ name: "Test", email: "t@example.com", passwordHash: "x", bio: "a".repeat(301) });
@@ -68,6 +68,7 @@ test("GET /api/users/:id : profil public sans email, publications visibles compt
   assert.equal(profile.postCount, 34);
   assert.deepEqual(profile.favorites.map((v) => v.name), ["Dassault Rafale", "Leclerc"]);
   assert.deepEqual(profile.favorites[0].origins, [{ name: "France", code: "fr", flagUrl: "f.png" }]);
+  assert.equal(profile.favorites[0].imageUrl, "https://upload.wikimedia.org/Dassault Rafale.jpg", "photo de l'aperçu");
   assert.equal(String(countFilter.ownerId), OTHER);
   assert.equal(String(countFilter.$or[0].ownerId), USER, "comptage selon les droits du lecteur");
 });

@@ -80,8 +80,7 @@
       @for (vehicle of vehicles(); track vehicle.id; let i = $index) {
         <a class="vehicle-card" [routerLink]="['/vehicles', vehicle.id]">
           <div class="visual">
-            <app-flag-backdrop [origins]="vehicle.origins" />
-            <app-vehicle-silhouette class="silhouette" [category]="vehicle.category" />
+            <app-vehicle-visual [imageUrl]="vehicle.imageUrl" [origins]="vehicle.origins" [category]="vehicle.category" />
             @if (sort() === 'popular') {
               <span class="rank" [class.top]="rank(i) <= 3">#{{ rank(i) }}</span>
             }

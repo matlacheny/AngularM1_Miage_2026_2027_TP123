@@ -85,23 +85,23 @@ describe('VehiclePageComponent', () => {
     const flags = hero.querySelectorAll<HTMLElement>('app-flag-backdrop .flag');
     expect(flags.length).toBe(2);
     expect(flags[0].style.backgroundImage).toContain('de.png');
-    // Drapeaux à leurs vraies proportions (2 × 3:2), sous la photo, fondus vers la droite.
-    expect(hero.querySelector<HTMLElement>('.hero-flag')?.style.aspectRatio).toBe('3 / 1');
-    expect(hero.querySelector('app-flag-backdrop')?.classList).toContain('fade-right');
+    // Un drapeau par bande oblique, sous la photo.
+    expect(hero.querySelectorAll('app-flag-backdrop .band').length).toBe(2);
     expect(hero.querySelector('img.hero-photo')?.getAttribute('src')).toBe(tigre.imageUrl);
     expect(hero.querySelector('.hero-group')?.textContent).toContain('Aviation');
     expect(hero.querySelector('h1')?.textContent).toContain('Tigre');
     expect([...hero.querySelectorAll('.pill')].map((p) => p.textContent?.trim())).toEqual(['Hélicoptère', 'Allemagne', 'France']);
   });
 
-  it('sans photo : silhouette de la catégorie ; un seul drapeau garde le ratio 3:2', async () => {
+  it('sans photo : silhouette de la catégorie ; un seul drapeau occupe toute la zone', async () => {
     flushInitial([], [], { ...tigre, imageUrl: null, origins: [tigre.origins[1]] });
     await render();
 
     const hero = element().querySelector('.hero')!;
     expect(hero.querySelector('img.hero-photo')).toBeNull();
     expect(hero.querySelector('app-vehicle-silhouette')).not.toBeNull();
-    expect(hero.querySelector<HTMLElement>('.hero-flag')?.style.aspectRatio).toBe('1.5 / 1');
+    const band = hero.querySelector<HTMLElement>('app-flag-backdrop .band')!;
+    expect([band.style.left, band.style.width]).toEqual(['0%', '100%']);
   });
 
   it('résumé : texte, faits et nombre de publications', async () => {
@@ -145,6 +145,25 @@ describe('VehiclePageComponent', () => {
     component.open(video);
     await render();
     expect(element().querySelector('app-media-viewer video')?.getAttribute('src')).toBe(video.url);
+  });
+
+  it('photo, vidéo et son ouvrent leur publication entière ; sans publication, la visionneuse', async () => {
+    const photo = { ...media('p1', 'image', 'Rafale en approche'), postId: 'post-1' };
+    const video = { ...media('p2', 'video', 'Démonstration'), postId: 'post-2' };
+    const sound = { ...media('p3', 'audio', 'Rotor'), postId: 'post-3' };
+    const alone = { ...media('p4', 'image', 'Photo seule'), postId: null };
+    flushInitial([], [photo, video, sound, alone]);
+    await render();
+
+    const cards = element().querySelectorAll('.post');
+    expect(cards[0].querySelector('a.block')?.getAttribute('href')).toBe('/posts/post-1?vehicle=v1');
+    expect(cards[0].querySelector('a.block')?.textContent).toContain('Voir');
+    expect(cards[1].querySelector('a.block')?.getAttribute('href')).toBe('/posts/post-2?vehicle=v1');
+    expect(cards[2].querySelector('a.block')?.getAttribute('href')).toBe('/posts/post-3?vehicle=v1');
+    expect(cards[2].querySelector('a.block')?.textContent).toContain('Lire');
+    expect(cards[0].querySelector('button.block')).toBeNull();
+    expect(cards[3].querySelector('a.block')).toBeNull();
+    expect(cards[3].querySelector('button.block')?.textContent).toContain('Voir');
   });
 
   it('filtre les publications par type (sons compris)', () => {

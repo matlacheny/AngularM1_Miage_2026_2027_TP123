@@ -56,8 +56,7 @@
       @for (v of p.favorites; track v.id) {
         <a class="fav" [routerLink]="['/vehicles', v.id]">
           <span class="fav-thumb">
-            <app-flag-backdrop [origins]="v.origins" />
-            <app-vehicle-silhouette class="fav-silhouette" [category]="v.category" />
+            <app-vehicle-visual [imageUrl]="v.imageUrl" [origins]="v.origins" [category]="v.category" />
           </span>
           <span class="fav-text">
             <b>{{ v.name }}</b>

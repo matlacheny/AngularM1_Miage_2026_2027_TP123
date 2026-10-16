@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import { createApp } from "../src/app.js";
 import { accessFilter, canAccess } from "../src/access.js";
 import { Media } from "../src/models/Media.js";
+import { Post } from "../src/models/Post.js";
 import { Vehicle } from "../src/models/Vehicle.js";
 import { UPLOADS } from "../src/uploads.js";
 import {
@@ -518,11 +519,37 @@ test("GET /api/vehicles/:id/media : chaque média reçoit une URL de lecture val
     totalPages: 1,
   }));
 
+  stub(t, Post, "find", async () => []);
+
   const json = await (await fetch(`${base}/api/vehicles/${VEHICLE_ID}/media`, { headers: bearer() })).json();
   const url = new URL(json.docs[0].url, base);
   assert.equal(url.pathname, `/api/media/${MEDIA_ID}/file`);
   const payload = jwt.verify(url.searchParams.get("token"), SECRET);
   assert.deepEqual([payload.sub, payload.mid, payload.scope], [USER, MEDIA_ID, "stream"]);
+});
+
+test("GET /api/vehicles/:id/media : chaque média indique le post visible le plus récent qui le publie", async (t) => {
+  const [WITH_POST, WITHOUT_POST] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()].map(String);
+  const [RECENT, OLD] = [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()];
+  stub(t, Media, "aggregatePaginate", async (_a, o) => ({
+    docs: [{ id: WITH_POST, kind: "image" }, { id: WITHOUT_POST, kind: "image" }],
+    totalDocs: 2,
+    limit: o.limit,
+    page: o.page,
+    totalPages: 1,
+  }));
+  let filter, options;
+  stub(t, Post, "find", async (f, _projection, o) => {
+    [filter, options] = [f, o];
+    // Déjà triés du plus récent au plus ancien, comme le demande la route.
+    return [{ _id: RECENT, mediaId: new mongoose.Types.ObjectId(WITH_POST) }, { _id: OLD, mediaId: new mongoose.Types.ObjectId(WITH_POST) }];
+  });
+
+  const json = await (await fetch(`${base}/api/vehicles/${VEHICLE_ID}/media`, { headers: bearer(OTHER) })).json();
+  assert.deepEqual(json.docs.map((d) => d.postId), [String(RECENT), null]);
+  assert.deepEqual(filter.mediaId.$in.map(String), [WITH_POST, WITHOUT_POST]);
+  assert.equal(String(filter.$or[0].ownerId), OTHER, "seuls les posts visibles par le lecteur");
+  assert.deepEqual(options.sort, { createdAt: -1 });
 });
 
 test("liste de médias : l'auteur joint n'expose que son nom", async () => {

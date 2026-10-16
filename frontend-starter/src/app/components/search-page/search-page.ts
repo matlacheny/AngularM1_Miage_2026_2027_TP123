@@ -4,9 +4,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
-import { FlagBackdropComponent } from '../../shared/components/flag-backdrop/flag-backdrop';
 import { IconComponent } from '../../shared/components/icon/icon';
-import { VehicleSilhouetteComponent } from '../../shared/components/vehicle-silhouette/vehicle-silhouette';
+import { VehicleVisualComponent } from '../../shared/components/vehicle-visual/vehicle-visual';
 import { KIND_LABELS, MediaKind } from '../../shared/models/media.model';
 import { Post } from '../../shared/models/post.model';
 import { CATEGORY_LABELS, Vehicle } from '../../shared/models/vehicle.model';
@@ -25,7 +24,7 @@ const KINDS: readonly MediaKind[] = ['audio', 'image', 'video'];
  * derniers fichiers publiés.
  */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink, IconComponent, FlagBackdropComponent, VehicleSilhouetteComponent, PostCardComponent],
+  imports: [ReactiveFormsModule, RouterLink, IconComponent, VehicleVisualComponent, PostCardComponent],
   templateUrl: './search-page.html',
   styleUrl: './search-page.css',
 })

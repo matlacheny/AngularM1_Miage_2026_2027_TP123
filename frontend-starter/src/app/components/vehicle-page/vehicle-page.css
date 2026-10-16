@@ -10,8 +10,8 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-/* Zone du drapeau : pleine hauteur, largeur selon ses proportions (max 70 %). */
-.hero-flag { position: absolute; top: 0; left: 0; height: 100%; max-width: 70%; }
+/* Zone des drapeaux : pleine hauteur, largeur fixe quel que soit le nombre de pays. */
+.hero-flag { position: absolute; top: 0; left: 0; width: 37%; height: 100%; }
 
 /*
  * Photo Wikipédia à droite, au premier plan et sans mélange de couleurs :
@@ -22,10 +22,10 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 62%;
+  width: 70%;
   height: 100%;
   object-fit: cover;
-  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 0.6) 22%, #000 45%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 14%);
 }
 /* Assombrit le bas pour la lisibilité du titre et des pastilles. */
 .hero-shade {
@@ -68,7 +68,21 @@
 .post.playing { border-color: var(--accent); }
 .post h3 { margin: 0.2rem 0 0; font-size: 1.1rem; }
 .author { margin: 0; font-size: 0.9rem; }
-.post button.block { margin-top: auto; }
+.post button.block, .post a.block { margin-top: auto; }
+/* Lien « Voir » vers la publication : même apparence que le bouton « Lire ». */
+.post a.button-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.1rem;
+  color: var(--primary-text);
+  background: var(--primary);
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.post a.button-link:hover { background: var(--primary-hover); }
 
 .thumb { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; background: linear-gradient(135deg, #4b4a46, #b07a1f); }
 .thumb-video { background: linear-gradient(135deg, #3b4652, #6d8094); }

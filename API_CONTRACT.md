@@ -71,7 +71,7 @@ Toutes les routes exigent `Authorization: Bearer <token>`.
 - `q` cherche dans le nom et dans les noms déjà saisis pour la fiche. Cette recherche est locale : elle n'interroge pas Wikipédia.
 - `POST /vehicles` : le serveur cherche `name` sur Wikipédia FR (10 meilleurs articles), puis garde le premier dont l'élément Wikidata est une sous-classe (P279, transitivement) d'hélicoptère (Q34486), d'aéronef (Q11436), de char (Q12876) ou de véhicule blindé de combat (Q1184840). Nom, catégorie, pays d'origine (P495), résumé, image et lien viennent de Wikipédia/Wikidata ; tout autre champ envoyé par le client est ignoré. Un nom déjà saisi est servi sans rappeler Wikipédia. Deux noms qui désignent le même élément Wikidata donnent la même fiche (`200`).
 - `imageUrl` (ou `null`) pointe vers le CDN public de Wikimedia : aucun JWT n'est nécessaire. Texte et image sont sous licence CC BY-SA ; l'interface affiche la source.
-- `GET /vehicles/:id/media` applique la même règle d'accès que `GET /media/:id` : médias publics, les siens, et ceux partagés avec le lecteur. `kind` accepte un type (`audio`) ou une liste séparée par des virgules (`image,video`) ; une seule valeur inconnue → `400 Catégorie inconnue`.
+- `GET /vehicles/:id/media` applique la même règle d'accès que `GET /media/:id` : médias publics, les siens, et ceux partagés avec le lecteur. `kind` accepte un type (`audio`) ou une liste séparée par des virgules (`image,video`) ; une seule valeur inconnue → `400 Catégorie inconnue`. Chaque média contient en plus `postId` : l'identifiant du post le plus récent qui le publie et que le lecteur peut voir (même règle d'accès), ou `null`. La fiche ouvre ainsi la publication entière (`/posts/:id`).
 
 Erreurs :
 - `400` : `Nom de véhicule requis (2 à 80 caractères)`, `Catégorie inconnue`.
@@ -133,7 +133,7 @@ Erreurs :
 
 `UserProfile` (profil public, **sans email**) : `{ id, name, bio, location, createdAt, postCount, favorites }` :
 - `postCount` compte les posts de ce membre **visibles par le lecteur** ;
-- `favorites` vaut `[{ id, name, category, countries, origins }]`, dans l'ordre choisi.
+- `favorites` vaut `[{ id, name, category, countries, origins, imageUrl }]`, dans l'ordre choisi.
 
 - `bio` : 300 caractères maximum ; `location` : 80 caractères maximum ; un champ qui n'est pas une chaîne → `400 Champ X invalide`.
 - 6 véhicules préférés au maximum. L'ajout est conditionnel et atomique. Ajouter une fiche déjà présente est sans effet (`200`).

@@ -35,6 +35,18 @@ describe('FlagBackdropComponent', () => {
     expect(flags.map((f) => f.getAttribute('title'))).toEqual(['B', 'C']);
   });
 
+  it('en bandes : tous les pays, chacun dans une bande oblique qui couvre la zone', async () => {
+    fixture.componentRef.setInput('layout', 'bands');
+    await render([origin('A', 'a.png'), origin('B', null), origin('C', 'c.png'), origin('D', 'd.png')]);
+    const bands = [...host().querySelectorAll<HTMLElement>('.band')];
+    expect(bands.map((b) => b.getAttribute('title'))).toEqual(['A', 'C', 'D']);
+    // Bords extérieurs droits, bords intérieurs inclinés ; le dernier finit au bord de la zone.
+    expect(bands[0].style.left).toBe('0%');
+    expect(bands[0].style.clipPath).toMatch(/^polygon\(0% 0(px)?, [\d.]+% 0(px)?, [\d.]+% 100%, 0% 100%\)$/);
+    expect(parseFloat(bands[2].style.left) + parseFloat(bands[2].style.width)).toBeCloseTo(100);
+    expect(host().querySelector('filter feDisplacementMap')?.getAttribute('scale')).toBe('10');
+  });
+
   it('fond neutre sans aucun drapeau', async () => {
     await render([]);
     expect(host().querySelector('.flag.neutral')).not.toBeNull();

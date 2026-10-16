@@ -26,5 +26,5 @@ export interface UserProfile {
   /** Amis en commun (ou toute l'escadrille sur son propre profil), 12 au plus. */
   mutualFriendCount: number;
   mutualFriends: Member[];
-  favorites: { id: string; name: string; category: VehicleCategory; countries: string[]; origins: Origin[] }[];
+  favorites: { id: string; name: string; category: VehicleCategory; countries: string[]; origins: Origin[]; imageUrl: string | null }[];
 }

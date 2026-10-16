@@ -25,8 +25,7 @@
         @for (vehicle of vehicles(); track vehicle.id) {
           <a class="vehicle-card" [routerLink]="['/vehicles', vehicle.id]">
             <span class="visual">
-              <app-flag-backdrop [origins]="vehicle.origins" />
-              <app-vehicle-silhouette class="silhouette" [category]="vehicle.category" />
+              <app-vehicle-visual [imageUrl]="vehicle.imageUrl" [origins]="vehicle.origins" [category]="vehicle.category" />
             </span>
             <span class="body">
               <b>{{ vehicle.name }}</b>

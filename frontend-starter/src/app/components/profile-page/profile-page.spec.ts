@@ -22,9 +22,9 @@ const lucas: UserProfile = {
   mutualFriendCount: 1,
   mutualFriends: [{ id: 'u3', name: 'Sarah Nguyen', location: '', bio: 'Passionnée d’hélicoptères' }],
   favorites: [
-    { id: 'v1', name: 'Dassault Rafale', category: 'aircraft', countries: ['France'], origins: [FR] },
-    { id: 'v4', name: 'Eurofighter Typhoon', category: 'aircraft', countries: ['Royaume-Uni'], origins: [UK] },
-    { id: 'v3', name: 'Leclerc', category: 'tank', countries: ['France'], origins: [FR] },
+    { id: 'v1', name: 'Dassault Rafale', category: 'aircraft', countries: ['France'], origins: [FR], imageUrl: 'https://upload.wikimedia.org/rafale.jpg' },
+    { id: 'v4', name: 'Eurofighter Typhoon', category: 'aircraft', countries: ['Royaume-Uni'], origins: [UK], imageUrl: null },
+    { id: 'v3', name: 'Leclerc', category: 'tank', countries: ['France'], origins: [FR], imageUrl: null },
   ],
 };
 

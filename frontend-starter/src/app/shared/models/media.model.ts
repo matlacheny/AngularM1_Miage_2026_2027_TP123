@@ -19,6 +19,8 @@ export interface Media {
   owner?: { id: string; name: string } | null;
   /** URL de lecture signée (présente dans les listes, valable 10 min). */
   url?: string;
+  /** Post visible le plus récent qui publie ce média (`GET /vehicles/:id/media`), ou `null`. */
+  postId?: string | null;
   createdAt: string;
 }
 

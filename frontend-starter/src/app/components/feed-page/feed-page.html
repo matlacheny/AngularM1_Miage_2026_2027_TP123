@@ -51,8 +51,7 @@
       @for (v of recommended(); track v.id) {
         <a class="side-item" [routerLink]="['/vehicles', v.id]">
           <span class="thumb">
-            <app-flag-backdrop [origins]="v.origins" />
-            <app-vehicle-silhouette class="thumb-silhouette" [category]="v.category" />
+            <app-vehicle-visual [imageUrl]="v.imageUrl" [origins]="v.origins" [category]="v.category" />
           </span>
           <span class="side-text">
             <b>{{ v.name }}</b>

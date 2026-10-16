@@ -133,8 +133,8 @@ export function createUsersRouter() {
         mutualFriendCount: shownIds.length,
         mutualFriends: shown.map((u) => ({ id: String(u._id), name: u.name, location: u.location ?? "", bio: u.bio ?? "" })),
         favorites: favorites.map((v) => {
-          const { id, name, category, countries, origins } = v.toPublic();
-          return { id, name, category, countries, origins };
+          const { id, name, category, countries, origins, imageUrl } = v.toPublic();
+          return { id, name, category, countries, origins, imageUrl };
         }),
       });
     } catch (error) {

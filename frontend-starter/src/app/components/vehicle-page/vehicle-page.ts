@@ -65,12 +65,6 @@ export class VehiclePageComponent {
   readonly error = signal('');
   readonly opened = signal<Media | null>(null);
 
-  /** Un drapeau fait 3:2 ; plusieurs drapeaux sont juxtaposés, chacun en entier. */
-  readonly flagRatio = computed(() => {
-    const flags = (this.vehicle()?.origins ?? []).filter((o) => o.flagUrl).slice(0, 2).length;
-    return `${1.5 * Math.max(1, flags)} / 1`;
-  });
-
   /** Étoile du bandeau : la fiche fait-elle partie de mes véhicules préférés ? */
   readonly isFavorite = computed(() => this.auth.currentUser()?.favoriteVehicleIds?.includes(this.id()) ?? false);
   readonly favoriteBusy = signal(false);

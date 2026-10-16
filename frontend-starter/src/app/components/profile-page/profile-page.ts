@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../shared/components/avatar/avatar';
 import { FlagBackdropComponent } from '../../shared/components/flag-backdrop/flag-backdrop';
 import { IconComponent } from '../../shared/components/icon/icon';
-import { VehicleSilhouetteComponent } from '../../shared/components/vehicle-silhouette/vehicle-silhouette';
+import { VehicleVisualComponent } from '../../shared/components/vehicle-visual/vehicle-visual';
 import { KIND_LABELS, MediaKind } from '../../shared/models/media.model';
 import { Post } from '../../shared/models/post.model';
 import { UserProfile } from '../../shared/models/user.model';
@@ -47,7 +47,7 @@ export function bannerOrigin(favorites: UserProfile['favorites']): Origin[] {
     AvatarComponent,
     FlagBackdropComponent,
     IconComponent,
-    VehicleSilhouetteComponent,
+    VehicleVisualComponent,
     PostCardComponent,
     RelationButtonComponent,
   ],

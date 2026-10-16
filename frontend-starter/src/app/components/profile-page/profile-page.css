@@ -45,7 +45,6 @@
 .fav { display: flex; align-items: center; gap: 0.8rem; padding: 0.55rem; color: var(--text); text-decoration: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
 .fav:hover { border-color: var(--accent); }
 .fav-thumb { position: relative; flex-shrink: 0; width: 92px; height: 60px; overflow: hidden; border-radius: 8px; }
-.fav-silhouette { position: absolute; inset: 16% 12%; }
 .fav-text { display: grid; gap: 0.15rem; min-width: 0; }
 .fav-text b { font-size: 0.95rem; }
 .fav-text small { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--accent); --icon-size: 0.85rem; }

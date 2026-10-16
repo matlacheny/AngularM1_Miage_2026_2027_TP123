@@ -3,9 +3,29 @@ import mongoose, { Types } from "mongoose";
 import { auth } from "../auth.js";
 import { accessFilter } from "../access.js";
 import { Media, SIZE_LIMITS, publicMediaPipeline } from "../models/Media.js";
+import { Post } from "../models/Post.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { CATEGORIES, WikiUnavailableError, normalizeName, wikipedia } from "../wikipedia.js";
 import { escapeRegExp, loadFriendIds, withStreamUrls } from "./media.js";
+
+/**
+ * Ajoute à chaque média `postId` : le post le plus récent, visible par le
+ * lecteur, qui le publie (ou `null`). Une seule requête par page ; la fiche
+ * ouvre ainsi la publication entière et non le seul fichier.
+ */
+async function withPostIds(page, viewer, friends) {
+  const ids = page.docs.map((doc) => new Types.ObjectId(doc.id));
+  if (!ids.length) return page;
+  const posts = await Post.find({ mediaId: { $in: ids }, ...accessFilter(viewer, friends) }, { mediaId: 1 }, {
+    sort: { createdAt: -1 },
+    lean: true,
+  });
+  const postByMedia = new Map();
+  for (const post of posts) {
+    if (!postByMedia.has(String(post.mediaId))) postByMedia.set(String(post.mediaId), String(post._id));
+  }
+  return { ...page, docs: page.docs.map((doc) => ({ ...doc, postId: postByMedia.get(doc.id) ?? null })) };
+}
 
 const pageParams = (query, defaultLimit) => ({
   page: Math.max(1, Number(query.page) || 1),
@@ -197,7 +217,7 @@ export function createVehiclesRouter() {
 
       const result = await Media.aggregatePaginate(Media.aggregate(publicMediaPipeline(match)), { page, limit });
       console.log(`[vehicles] ${result.docs.length} média(s) pour la fiche ${req.params.id}`);
-      res.json(withStreamUrls(result, req.auth.sub));
+      res.json(withStreamUrls(await withPostIds(result, viewer, friends), req.auth.sub));
     } catch (error) {
       console.error("[vehicles] Erreur de lecture des médias", error);
       next(error);

@@ -4,9 +4,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
-import { FlagBackdropComponent } from '../../shared/components/flag-backdrop/flag-backdrop';
 import { IconComponent } from '../../shared/components/icon/icon';
-import { VehicleSilhouetteComponent } from '../../shared/components/vehicle-silhouette/vehicle-silhouette';
+import { VehicleVisualComponent } from '../../shared/components/vehicle-visual/vehicle-visual';
 import {
   CATEGORIES,
   CATEGORY_LABELS,
@@ -21,7 +20,7 @@ export const PAGE_SIZE = 8;
 
 /** Catalogue des fiches : recherche, tri, filtre par catégorie, et état « aucune fiche ». */
 @Component({
-  imports: [ReactiveFormsModule, RouterLink, IconComponent, FlagBackdropComponent, VehicleSilhouetteComponent],
+  imports: [ReactiveFormsModule, RouterLink, IconComponent, VehicleVisualComponent],
   templateUrl: './vehicles-page.html',
   styleUrl: './vehicles-page.css',
 })

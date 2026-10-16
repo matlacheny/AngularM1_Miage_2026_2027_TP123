@@ -2,9 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { AvatarComponent } from '../../shared/components/avatar/avatar';
-import { FlagBackdropComponent } from '../../shared/components/flag-backdrop/flag-backdrop';
 import { IconComponent } from '../../shared/components/icon/icon';
-import { VehicleSilhouetteComponent } from '../../shared/components/vehicle-silhouette/vehicle-silhouette';
+import { VehicleVisualComponent } from '../../shared/components/vehicle-visual/vehicle-visual';
 import { KIND_LABELS, MediaKind } from '../../shared/models/media.model';
 import { Post } from '../../shared/models/post.model';
 import { CATEGORY_LABELS, Vehicle } from '../../shared/models/vehicle.model';
@@ -29,9 +28,8 @@ const DAY = 24 * 60 * 60 * 1000;
   imports: [
     RouterLink,
     AvatarComponent,
-    FlagBackdropComponent,
     IconComponent,
-    VehicleSilhouetteComponent,
+    VehicleVisualComponent,
     PostCardComponent,
     PostComposerComponent,
   ],
