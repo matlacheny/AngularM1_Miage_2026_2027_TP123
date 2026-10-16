@@ -10,7 +10,7 @@
 
   <label class="search-field">
     <app-icon name="search" />
-    <input [formControl]="search" type="search" placeholder="Rechercher un véhicule, un membre…" aria-label="Rechercher un véhicule ou un membre" />
+    <input [formControl]="search" type="search" placeholder="Rechercher une publication, un véhicule, un membre…" aria-label="Rechercher une publication, un véhicule ou un membre" />
   </label>
 
   @if (term()) {
@@ -70,7 +70,7 @@
       @if (!loading() && !error()) {
         <div class="card empty">
           <b>Aucune publication avec fichier{{ term() ? ' pour « ' + term() + ' »' : '' }}.</b>
-          <p class="hint">Les publications sont trouvées par leur véhicule ou par le nom de leur auteur.</p>
+          <p class="hint">Les publications sont trouvées par leur titre, leur véhicule ou le nom de leur auteur.</p>
         </div>
       }
     }

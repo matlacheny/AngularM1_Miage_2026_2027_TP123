@@ -10,6 +10,7 @@ const post = (id: string, name: string, hoursAgo = 2): Post => ({
   id,
   ownerId: `u-${id}`,
   owner: { id: `u-${id}`, name },
+  title: '',
   text: `Post ${id}`,
   media: { id: `m-${id}`, kind: 'image', title: 't', mimeType: 'image/jpeg', url: `/api/media/m-${id}/file` },
   vehicle: { id: 'v1', name: 'Dassault Rafale', category: 'aircraft' },
@@ -88,7 +89,7 @@ describe('FeedPageComponent', () => {
     const reco = element().querySelector('.side-card a.side-item')!;
     expect(reco.getAttribute('href')).toBe('/vehicles/v1');
     expect(reco.querySelector('app-flag-backdrop')).not.toBeNull();
-    const recent = [...element().querySelectorAll('.side-card')][2];
+    const recent = element().querySelector('[aria-labelledby="recent-title"]')!;
     expect(recent.textContent).toContain('Sarah Nguyen');
     expect(recent.textContent).toContain('Photo · Dassault Rafale');
     expect(recent.querySelector('.ago')?.classList.contains('fresh')).toBe(false); // plus de 24 h

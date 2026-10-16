@@ -13,7 +13,18 @@
 
 /* ---- Colonne de droite ------------------------------------------------- */
 
-.aside { position: sticky; top: 2rem; display: grid; gap: 1.2rem; }
+/* Plus haute que l'écran, la colonne défile seule au lieu d'attendre le bas du fil. */
+.aside {
+  position: sticky;
+  top: 2rem;
+  display: grid;
+  gap: 1.2rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
 .side-card { padding: 1.1rem 1.2rem; }
 .side-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
 .side-head h2 { margin: 0; font-size: 1.05rem; }
@@ -36,5 +47,5 @@
 
 @media (max-width: 1150px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  .aside { position: static; }
+  .aside { position: static; max-height: none; overflow: visible; }
 }

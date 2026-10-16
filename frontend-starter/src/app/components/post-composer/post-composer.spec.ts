@@ -81,6 +81,30 @@ describe('PostComposerComponent', () => {
     expect(component.file()).toBeNull();
   });
 
+  it('titre : envoyé au post et donné au média, puis remis à zéro', () => {
+    component.title.setValue('  Décollage plein PC ');
+    component.text.setValue('Au petit matin');
+    chooseFile(new File(['abc'], 'rafale.mp3', { type: 'audio/mpeg' }));
+
+    component.publish();
+    const upload = http.expectOne('/api/media');
+    expect((upload.request.body as FormData).get('title')).toBe('Décollage plein PC');
+    upload.flush({ id: 'm8' });
+
+    const post = http.expectOne('/api/posts');
+    expect(post.request.body.title).toBe('Décollage plein PC');
+    post.flush(created);
+    expect(component.title.value).toBe('');
+  });
+
+  it('sans titre : aucun titre envoyé, le serveur reprend celui du média', () => {
+    component.text.setValue('Salut');
+    component.publish();
+    const req = http.expectOne('/api/posts');
+    expect('title' in req.request.body && req.request.body.title !== undefined).toBe(false);
+    req.flush(created);
+  });
+
   it('refuse un fichier invalide sans appel HTTP', () => {
     chooseFile(new File(['%PDF'], 'notice.pdf', { type: 'application/pdf' }));
     expect(component.file()).toBeNull();

@@ -88,15 +88,16 @@ Toutes les routes exigent `Authorization: Bearer <token>`. Un post invisible pou
 |---|---|---|---|
 | GET | `/posts/feed?page=1&limit=10&others=` | JWT | `Page<Post>` (posts visibles, plus récents d'abord) |
 | GET | `/posts/:id` | JWT | `200 Post` |
-| POST | `/posts` | `{text?, mediaId?, vehicleId?, visibility?}` + JWT | `201 Post` |
+| POST | `/posts` | `{title?, text?, mediaId?, vehicleId?, visibility?}` + JWT | `201 Post` |
 | DELETE | `/posts/:id` | JWT | `204` (auteur uniquement ; supprime aussi les commentaires et le média, sauf si un autre post le publie) |
 | PUT | `/posts/:id/like` | JWT | `200 {likeCount, likedByMe}` |
 | DELETE | `/posts/:id/like` | JWT | `200 {likeCount, likedByMe}` |
 | GET | `/posts/:id/comments?page=1&limit=20` | JWT | `Page<Comment>` (plus anciens d'abord) |
 | POST | `/posts/:id/comments` | `{text}` + JWT | `201 {comment, commentCount}` |
 
-`Post` : `{ id, ownerId, owner, text, media, vehicle, visibility, likeCount, likedByMe, commentCount, createdAt }` :
+`Post` : `{ id, ownerId, owner, title, text, media, vehicle, visibility, likeCount, likedByMe, commentCount, createdAt }` :
 - `owner` vaut `{ id, name }` ;
+- `title` (120 caractères au plus, sinon `400 Titre trop long`) : l'intitulé choisi ; sans intitulé, le serveur reprend le titre du média, sinon la première ligne du texte ;
 - `media` vaut `{ id, kind, title, mimeType, url }` ou `null`, où `url` est une URL de lecture signée valable 10 minutes ;
 - `vehicle` vaut `{ id, name, category }` ou `null`.
 
@@ -138,7 +139,7 @@ Erreurs :
 - `bio` : 300 caractères maximum ; `location` : 80 caractères maximum ; un champ qui n'est pas une chaîne → `400 Champ X invalide`.
 - 6 véhicules préférés au maximum. L'ajout est conditionnel et atomique. Ajouter une fiche déjà présente est sans effet (`200`).
 - `GET /posts/feed` accepte aussi `author=<id>` (posts d'un membre) et `kind=audio|image|video` (posts dont le média est de ce type). Les droits du lecteur s'appliquent toujours.
-- `GET /posts/feed` accepte aussi `q=<texte>` (recherche, TP4 étape 4) et `media=1` (posts avec un fichier uniquement). `q` (100 caractères au plus, insensible à la casse, cherché littéralement) trouve les posts rattachés à un véhicule dont le nom ou un alias le contient, ou dont l'auteur a un nom qui le contient ; le texte du post n'est pas cherché. Les droits du lecteur s'appliquent toujours ; `q` se combine avec `kind`, `author` et `scope`.
+- `GET /posts/feed` accepte aussi `q=<texte>` (recherche, TP4 étape 4) et `media=1` (posts avec un fichier uniquement). `q` (100 caractères au plus, insensible à la casse, cherché littéralement) trouve les posts dont l'intitulé (`title`) le contient, ceux rattachés à un véhicule dont le nom ou un alias le contient, ou ceux dont l'auteur a un nom qui le contient ; le texte du post n'est pas cherché. Les droits du lecteur s'appliquent toujours ; `q` se combine avec `kind`, `author` et `scope`.
 
 Erreurs :
 - `400` : `6 véhicules préférés au maximum`, `Champ X invalide`, `Auteur invalide`, `Catégorie inconnue`.

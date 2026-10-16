@@ -10,6 +10,7 @@ const post = (id: string): Post => ({
   id,
   ownerId: 'u1',
   owner: { id: 'u1', name: 'Lucas Bernard' },
+  title: 'Rafale au décollage',
   text: `Post ${id}`,
   media: { id: `m-${id}`, kind: 'audio', title: 'Rafale au décollage', mimeType: 'audio/mpeg', url: `/api/media/m-${id}/file` },
   vehicle: { id: 'v1', name: 'Dassault Rafale', category: 'aircraft' },

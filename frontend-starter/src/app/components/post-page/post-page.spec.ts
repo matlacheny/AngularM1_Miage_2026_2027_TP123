@@ -9,6 +9,7 @@ const post: Post = {
   id: 'post-1',
   ownerId: 'u2',
   owner: { id: 'u2', name: 'Thomas Leroy' },
+  title: '',
   text: 'Superbe photo de F-15.',
   media: null,
   vehicle: { id: 'v1', name: 'McDonnell Douglas F-15 Eagle', category: 'aircraft' },

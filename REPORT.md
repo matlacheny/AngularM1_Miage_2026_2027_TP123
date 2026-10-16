@@ -673,7 +673,7 @@ Sur la base de démonstration, avec une instance du backend lancée à part (com
 ### Tests
 
 **Backend** (+4, `test/posts.test.js`) :
-- `searchCondition` : véhicule (nom ou alias normalisé) ou auteur, jamais le texte, regex échappée ;
+- `searchCondition` : véhicule (nom ou alias normalisé) ou auteur, jamais le texte, regex échappée (l'intitulé s'y ajoute en section 13) ;
 - `q` nettoyé, `media=1` appliqué, droits du lecteur conservés ;
 - `q` vide : aucune condition ni recherche préalable ;
 - `q` combiné avec `kind`, 400 pour un type inconnu.
@@ -692,10 +692,89 @@ Sur la base de démonstration, avec une instance du backend lancée à part (com
 
 Le test de la barre latérale vérifie maintenant qu'elle ouvre `/search`. Les tests du fil distinguent désormais ses quatre requêtes de départ.
 
-## 12. Résultats actuels des tests
+## 12. Fiches véhicules : visuels et accès aux publications
+
+### Fonctionnalités
+
+- **Aperçu commun des fiches** (`shared/components/vehicle-visual`) : catalogue, recherche, fil (« Véhicules recommandés ») et favoris du profil affichent la photo Wikipédia de la fiche. Sans photo, ou si elle ne se charge pas, l'aperçu retombe sur le drapeau du pays et la silhouette de la catégorie.
+- **Bandeau de la fiche, tous les drapeaux** : `FlagBackdropComponent` accepte `layout="bands"`. La zone garde sa largeur quel que soit le nombre de pays, et chaque drapeau occupe une bande oblique, étiré pour rester entier. Un véhicule à 3 ou 4 pays les montre tous (avant : deux au plus).
+- **Les médias d'une fiche ouvrent leur publication.** `GET /vehicles/:id/media` renvoie pour chaque média `postId`, le post le plus récent qui le publie et que le lecteur peut voir. « Voir » / « Lire » ouvre alors `/posts/:id` (texte, J'aime, commentaires) ; un média sans publication garde la visionneuse.
+- **Retour vers la fiche** : la page d'un post ouverte avec `?vehicle=<id>` affiche « ← <nom du véhicule> » et y ramène, y compris après la suppression du post. Ouverte depuis le fil, elle ramène au fil.
+- **Favoris du profil** : `GET /users/:id` renvoie aussi `imageUrl` pour chaque véhicule préféré.
+
+### Choix techniques
+
+- **Un seul composant d'aperçu** au lieu de quatre copies du même `@if` (photo, sinon drapeau et silhouette). L'événement `error` de l'image bascule sur le repli : une photo Wikipédia bloquée ou supprimée ne laisse pas de cadre vide.
+- **`postId` calculé par une seule requête** pour toute la page (`withPostIds` dans `routes/vehicles.js`) : les posts des médias de la page, filtrés par la même règle d'accès (`accessFilter`), du plus récent au plus ancien. Un post que le lecteur ne peut pas voir n'est jamais proposé.
+- **Bandes obliques en `clip-path`** : chaque drapeau garde un `background-size: 100% 100%`, donc il est déformé plutôt que rogné. Un pays dont on ne verrait que le centre serait méconnaissable.
+
+### Script `more-media`
+
+`cd backend && npm run more-media [-- --images 10 --videos 3 --only "Leopard 2" --dry-run]` complète chaque fiche jusqu'à N photos et M vidéos pour la **base locale de démonstration uniquement** : les licences ne sont pas filtrées, ces fichiers ne doivent pas être publiés.
+
+- Photos : images des articles Wikipédia (en et fr), puis la catégorie Commons du véhicule (Wikidata P373, sans ses sous-catégories, qui mélangent d'autres véhicules).
+- Vidéos : Commons (catégorie et « dépeint », P180), puis recherche YouTube (yt-dlp), réencodées en MP4 480p de 90 s au plus (ffmpeg).
+- Filtres : le titre doit citer le véhicule (mots-clés sans constructeur ni mot générique, comparés sans tirets ni accents) ; jeux vidéo, maquettes, mèmes, compilations et durées extrêmes sont écartés ; cartes, drapeaux, logos, dessins et petites images aussi.
+- Relançable : un média déjà importé (même nom d'origine) est ignoré, les recherches sont mises en cache dans `data/uploads/.more-media-cache.json`.
+
+### Tests
+
+**Backend** (+5) :
+- `test/more-media.test.js` (+4) : mots-clés d'un nom de véhicule ; reconnaissance du véhicule dans un titre ; vidéos écartées (jeu, maquette, mème, documentaire de 2 h, autre véhicule) ; photos écartées (carte, drapeau, image trop petite, dessin SVG).
+- `test/vehicles.test.js` (+1) : chaque média indique le post visible le plus récent qui le publie, avec le filtre d'accès appliqué.
+
+**Frontend** (+6) :
+- `vehicle-visual.spec.ts` (+2) : la photo seule ; sans photo ou si elle échoue, drapeau et silhouette.
+- `flag-backdrop.spec.ts` (+1) : en bandes, tous les pays, chacun dans une bande qui couvre la zone.
+- `post-page.spec.ts` (+2, nouveau fichier) : retour vers le fil par défaut ; retour vers la fiche avec `?vehicle=`.
+- `vehicle-page.spec.ts` (+1) : photo, vidéo et son ouvrent leur publication ; sans publication, la visionneuse.
+
+## 13. Corrections après relecture de l'interface
+
+### Supprimer une publication la supprime partout
+
+**Problème.** Une publication supprimée restait visible sur la fiche véhicule. La fiche liste les **médias** rattachés au véhicule, pas les posts ; or `DELETE /posts/:id` gardait volontairement le média dans le hangar. Comme la publication avait élargi sa visibilité (voir section 8), le fichier restait même visible par tout le monde.
+
+**Correctif** (`routes/posts.js`) : la suppression d'un post efface aussi son média (document et fichier sur le disque), **sauf si un autre post le publie encore**. Le message de confirmation l'annonce (« Son média sera supprimé partout, hangar compris. ») et `API_CONTRACT.md` est à jour. `removeStoredFile` est exporté par `routes/media.js` pour ne pas dupliquer la suppression du fichier.
+
+Les médias orphelins créés avant le correctif (deux captures du compte démo) ont été supprimés de la base avec la publication qui en utilisait encore un.
+
+Supprimer un média depuis le hangar ne supprime pas, pour l'instant, les posts qui le publient : ils restent, sans fichier.
+
+**Test** (+1, `test/posts.test.js`) : le média est gardé si un autre post le publie, supprimé sinon (filtré sur le propriétaire).
+
+### Sélecteur de véhicule du compositeur
+
+Une fois le véhicule choisi, `VehiclePickerComponent` remplaçait le champ et son libellé par la fiche choisie : sans marge ni titre, elle se collait au fichier joint et dépassait le menu « Visibilité ». La fiche choisie garde maintenant le libellé « Véhicule », la même marge que les autres champs et la hauteur d'un champ ; un nom trop long est coupé avec « … ». La correction vaut aussi pour la page Hangar.
+
+### Colonne de droite du fil
+
+- **Ordre** : « Escadrille · posts récents » passe avant « Derniers ajouts ».
+- **Défilement** : la colonne, collée en haut de l'écran (`position: sticky`), était plus haute que la fenêtre ; ses derniers blocs n'apparaissaient qu'en bas du fil. Elle est maintenant limitée à la hauteur de l'écran et défile seule (`overflow-y: auto`, `overscroll-behavior: contain` pour ne pas entraîner le fil). Sous 1150 px, elle repasse sous le fil sans défilement propre.
+- Le test du bloc de l'escadrille le trouve par son titre (`aria-labelledby`) et non plus par sa position.
+
+### Recherche par titre de publication
+
+**Problème.** La recherche (barre latérale et page `/search`) ne trouvait une publication que par son véhicule ou par le nom de son auteur. Une photo intitulée « Décollage plein PC » sans fiche véhicule ne sortait pas pour « décollage ». Pour la demande « search files » du sujet, c'était le principal manque.
+
+**Correctif.**
+- **Champ `title` sur `Post`** (120 caractères au plus). `postTitle()` (`models/Post.js`) choisit l'intitulé : celui saisi, sinon le titre du média, sinon la première ligne du texte. `POST /posts` l'applique et refuse un titre trop long (400).
+- **Recherche** : `searchCondition` ajoute `{ title: regex }` à son `$or`, avec la même regex échappée et insensible à la casse que pour les véhicules et les membres. Le texte du post n'est toujours pas cherché : il contient les crédits (« Source : Wikimedia Commons… »), qui feraient sortir presque tous les posts.
+- **Compositeur** : un champ « Titre (facultatif) » apparaît avec les options. Le titre est aussi donné au média envoyé dans le hangar.
+- **Carte de post** : l'intitulé s'affiche en tête, au-dessus du texte.
+- **Placeholders** : « Rechercher une publication, un véhicule, un membre… » dans la barre latérale et sur la page de recherche.
+- **Scripts de démonstration** (`seed`, `repair-media`, `more-media`) : les posts créés reçoivent le titre de leur média.
+
+**Backfill.** `npm run backfill:post-titles [-- --dry-run]` (`scripts/backfill-post-titles.js`) donne un intitulé aux posts qui n'en ont pas, avec la même règle `postTitle()`, en un seul `bulkWrite` et sans toucher à `updatedAt`. Il est relançable : les posts déjà intitulés sont ignorés. Exécuté sur la base : **263 posts mis à jour**, 0 au second passage.
+
+**Tests.**
+- Backend (+2, `test/posts.test.js`) : `postTitle` (titre choisi, titre du média, première ligne du texte, coupure à 120) ; `POST /posts` enregistre le titre, reprend celui du média s'il manque et refuse 121 caractères. Les tests de `searchCondition` et de `GET /posts/feed?q=` vérifient en plus la condition sur l'intitulé.
+- Frontend (+3) : le compositeur envoie le titre au post et au média puis le remet à zéro ; sans titre, aucun titre n'est envoyé ; la carte affiche l'intitulé, et rien sans intitulé.
+
+## 14. Résultats actuels des tests
 
 | Suite | Commande | Résultat |
 |---|---|---|
-| Backend | `cd backend && npm test` | **122 tests, 122 réussis** |
-| Frontend | `cd frontend-starter && npm test` | **112 tests, 112 réussis** (21 fichiers) |
+| Backend | `cd backend && npm test` | **130 tests, 130 réussis** |
+| Frontend | `cd frontend-starter && npm test` | **121 tests, 121 réussis** (23 fichiers) |
 | Build | `cd frontend-starter && npx ng build` | OK, sans avertissement |

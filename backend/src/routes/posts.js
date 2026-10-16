@@ -4,7 +4,7 @@ import { auth } from "../auth.js";
 import { VISIBILITIES, accessFilter } from "../access.js";
 import { Comment, publicCommentPipeline } from "../models/Comment.js";
 import { Media } from "../models/Media.js";
-import { Post, publicPostPipeline } from "../models/Post.js";
+import { Post, TITLE_MAX, postTitle, publicPostPipeline } from "../models/Post.js";
 import { User } from "../models/User.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { normalizeName } from "../wikipedia.js";
@@ -30,9 +30,9 @@ export async function visibleTo(viewerId) {
 }
 
 /**
- * Condition de recherche : le post est rattaché à une fiche véhicule dont le
- * nom ou un alias contient `q`, ou son auteur a un nom qui contient `q`.
- * Le texte du post n'est pas cherché. Fiches et membres sont cherchés d'abord,
+ * Condition de recherche : l'intitulé du post contient `q`, ou le post est
+ * rattaché à une fiche véhicule dont le nom ou un alias contient `q`, ou son
+ * auteur a un nom qui contient `q`. Le texte du post n'est pas cherché. Fiches et membres sont cherchés d'abord,
  * pour que le $match reste en tête du pipeline. Les droits restent ceux du
  * post (visibleTo).
  */
@@ -42,7 +42,7 @@ export async function searchCondition(q) {
     Vehicle.distinct("_id", { $or: [{ name: regex }, { aliases: { $regex: escapeRegExp(normalizeName(q)) } }] }),
     User.distinct("_id", { name: regex }),
   ]);
-  return { $or: [{ vehicleId: { $in: vehicleIds } }, { ownerId: { $in: ownerIds } }] };
+  return { $or: [{ title: regex }, { vehicleId: { $in: vehicleIds } }, { ownerId: { $in: ownerIds } }] };
 }
 
 /** Ajoute l'URL de lecture signée au média de chaque post. */
@@ -120,7 +120,8 @@ export function createPostsRouter() {
   });
 
   /**
-   * Publie un post { text?, mediaId?, vehicleId?, visibility? }.
+   * Publie un post { title?, text?, mediaId?, vehicleId?, visibility? }.
+   * Sans intitulé, celui du média (ou la première ligne du texte) est repris.
    * Le média doit appartenir à l'auteur ; s'il est moins visible que le
    * post, sa visibilité est élargie, sinon les lecteurs du post verraient
    * une carte sans pouvoir lire le fichier.
@@ -128,11 +129,13 @@ export function createPostsRouter() {
   router.post("/", auth, async (req, res, next) => {
     try {
       const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+      const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
       const visibility = req.body?.visibility ?? "public";
       const { mediaId, vehicleId } = req.body ?? {};
 
       if (!VISIBILITIES.includes(visibility)) return res.status(400).json({ message: "Visibilité invalide" });
       if (text.length > 2000) return res.status(400).json({ message: "Texte trop long (2000 caractères maximum)" });
+      if (title.length > TITLE_MAX) return res.status(400).json({ message: `Titre trop long (${TITLE_MAX} caractères maximum)` });
       if (!text && !mediaId) return res.status(400).json({ message: "Un texte ou un média est requis" });
 
       let media = null;
@@ -155,7 +158,7 @@ export function createPostsRouter() {
         await media.save();
       }
 
-      const post = await Post.create({ ownerId: req.auth.sub, text, mediaId: media?._id ?? null, vehicleId: vehicle, visibility });
+      const post = await Post.create({ ownerId: req.auth.sub, title: postTitle(title, media?.title, text), text, mediaId: media?._id ?? null, vehicleId: vehicle, visibility });
       console.log(`[posts] Post publié : ${post.id} (${visibility})`);
       res.status(201).json(await findVisiblePost(post.id, req.auth.sub));
     } catch (error) {

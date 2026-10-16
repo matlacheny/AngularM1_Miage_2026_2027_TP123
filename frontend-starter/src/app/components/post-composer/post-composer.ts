@@ -42,6 +42,7 @@ export class PostComposerComponent {
   readonly visibilities: Visibility[] = ['public', 'friends', 'private'];
   readonly visibilityLabels = VISIBILITY_LABELS;
 
+  readonly title = new FormControl('', { nonNullable: true });
   readonly text = new FormControl('', { nonNullable: true });
   readonly visibility = new FormControl<Visibility>('public', { nonNullable: true });
   readonly file = signal<File | null>(null);
@@ -91,6 +92,8 @@ export class PostComposerComponent {
 
   publish(): void {
     if (!this.canPublish()) return;
+    // Sans intitulé, le serveur reprend celui du média (ou la première ligne du texte).
+    const title = this.title.value.trim() || undefined;
     const text = this.text.value.trim();
     const visibility = this.visibility.value;
     const vehicleId = this.vehicle()?.id;
@@ -101,7 +104,7 @@ export class PostComposerComponent {
     this.error.set('');
 
     const created$ = file
-      ? this.mediaService.upload(file, text.slice(0, 120) || file.name, visibility, vehicleId).pipe(
+      ? this.mediaService.upload(file, title ?? (text.slice(0, 120) || file.name), visibility, vehicleId).pipe(
           map((event) => {
             if (event.type === HttpEventType.UploadProgress && event.total) {
               this.progress.set(Math.round((100 * event.loaded) / event.total));
@@ -109,9 +112,9 @@ export class PostComposerComponent {
             return event.type === HttpEventType.Response ? event.body : null;
           }),
           filter((media): media is Media => media !== null),
-          switchMap((media) => this.posts.create({ text, mediaId: media.id, vehicleId, visibility })),
+          switchMap((media) => this.posts.create({ title, text, mediaId: media.id, vehicleId, visibility })),
         )
-      : this.posts.create({ text, vehicleId, visibility });
+      : this.posts.create({ title, text, vehicleId, visibility });
 
     created$.subscribe({
       next: (post) => {
@@ -128,6 +131,7 @@ export class PostComposerComponent {
   }
 
   private reset(): void {
+    this.title.setValue('');
     this.text.setValue('');
     this.file.set(null);
     this.vehicle.set(null);

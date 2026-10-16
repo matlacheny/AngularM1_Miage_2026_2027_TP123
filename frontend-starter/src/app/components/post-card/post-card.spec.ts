@@ -10,6 +10,7 @@ const post = (overrides: Partial<Post> = {}): Post => ({
   id: 'p1',
   ownerId: 'u2',
   owner: { id: 'u2', name: 'Lucas Bernard' },
+  title: 'Rafale en virage',
   text: 'Passage à basse altitude.',
   media: { id: 'm1', kind: 'image', title: 'Rafale', mimeType: 'image/jpeg', url: '/api/media/m1/file?token=t' },
   vehicle: { id: 'v1', name: 'Dassault Rafale', category: 'aircraft' },
@@ -59,11 +60,17 @@ describe('PostCardComponent', () => {
     expect(element().querySelector('a.author')?.getAttribute('href')).toBe('/users/u2');
     expect(text).toContain('Il y a 2 h · Public');
     expect(text).toContain('Passage à basse altitude.');
+    expect(element().querySelector('h3.title')?.textContent).toBe('Rafale en virage');
     expect(element().querySelector('a.vehicle-chip')?.getAttribute('href')).toBe('/vehicles/v1');
     expect(element().querySelector('.pill-accent')?.textContent).toContain('Photo');
     expect(element().querySelector('.media img')?.getAttribute('src')).toBe('/api/media/m1/file?token=t');
     expect(text).toContain('48 J’aime');
     expect(text).toContain('12 commentaires');
+  });
+
+  it('sans titre : pas d’intitulé affiché', async () => {
+    await create(post({ title: '' }));
+    expect(element().querySelector('h3.title')).toBeNull();
   });
 
   it('son : lecteur audio ; vidéo : balise vidéo avec contrôles', async () => {

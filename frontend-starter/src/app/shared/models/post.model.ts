@@ -6,6 +6,8 @@ export interface Post {
   id: string;
   ownerId: string;
   owner: { id: string; name: string } | null;
+  /** Intitulé, trouvé par la recherche ; par défaut celui du média. */
+  title: string;
   text: string;
   /** Média joint, avec son URL de lecture signée (valable 10 min). */
   media: { id: string; kind: MediaKind; title: string; mimeType: string; url: string } | null;
@@ -32,6 +34,7 @@ export interface LikeState {
 }
 
 export interface NewPost {
+  title?: string;
   text?: string;
   mediaId?: string;
   vehicleId?: string;

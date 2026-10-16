@@ -2,6 +2,17 @@ import mongoose from "mongoose";
 import aggregatePaginate from "mongoose-aggregate-paginate-v2";
 import { VISIBILITIES } from "../access.js";
 
+export const TITLE_MAX = 120;
+
+/**
+ * Intitulé d'un post : celui choisi, sinon le titre du média, sinon la
+ * première ligne du texte. Sert à la publication et au backfill.
+ */
+export function postTitle(title, mediaTitle, text = "") {
+  const firstLine = String(text).trim().split("\n")[0];
+  return (String(title ?? "").trim() || String(mediaTitle ?? "").trim() || firstLine.trim()).slice(0, TITLE_MAX);
+}
+
 /*
  * Un post est ce que l'utilisateur publie dans le fil : un texte, et/ou un
  * média (son, photo, vidéo) de son hangar, éventuellement rattaché à une
@@ -11,6 +22,8 @@ import { VISIBILITIES } from "../access.js";
 const schema = new mongoose.Schema(
   {
     ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    // Intitulé, cherché par la recherche ; par défaut celui du média (voir postTitle).
+    title: { type: String, trim: true, maxlength: TITLE_MAX, default: "" },
     text: { type: String, trim: true, maxlength: 2000, default: "" },
     mediaId: { type: mongoose.Schema.Types.ObjectId, ref: "Media", default: null },
     vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", default: null, index: true },

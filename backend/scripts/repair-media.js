@@ -223,7 +223,7 @@ async function addCurated(users, now) {
     });
     const credit = `Source : ${item.source} — ${item.artist} (${item.license}) ${item.pageUrl ?? ""}`.trim();
     await Post.collection.insertOne({
-      _id: postId, ownerId: owner, text: `${pick(INTROS[item.kind]).replace("{v}", vehicle.name)}\n${credit}`,
+      _id: postId, ownerId: owner, title, text: `${pick(INTROS[item.kind]).replace("{v}", vehicle.name)}\n${credit}`,
       mediaId, vehicleId: vehicle._id, visibility: "public", sharedWith: [],
       likes: sample(users, between(0, 15)), commentCount, createdAt, updatedAt: createdAt,
     });

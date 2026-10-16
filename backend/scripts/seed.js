@@ -384,7 +384,7 @@ async function main() {
       comments.push({ postId, ownerId: pick(users), text: pick(COMMENTS), createdAt: at, updatedAt: at });
     }
     posts.push({
-      _id: postId, ownerId: owner, text: `${pick(INTROS[item.kind]).replace("{v}", subject)}\n${credit}`,
+      _id: postId, ownerId: owner, title, text: `${pick(INTROS[item.kind]).replace("{v}", subject)}\n${credit}`,
       mediaId, vehicleId: item.vehicle?._id ?? null, visibility, sharedWith: [],
       likes: visibility === "private" ? [] : sample(users, between(0, 15)), commentCount, createdAt, updatedAt: createdAt,
     });

@@ -32,6 +32,9 @@
     }
   </header>
 
+  @if (p.title) {
+    <h3 class="title">{{ p.title }}</h3>
+  }
   @if (p.text) {
     <p class="text">{{ p.text }}</p>
   }

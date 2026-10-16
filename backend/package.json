@@ -7,6 +7,7 @@
         "start:local": "node src/server.js",
         "test": "node --test",
         "backfill:origins": "node --env-file=.env scripts/backfill-origins.js",
+        "backfill:post-titles": "node --env-file=.env scripts/backfill-post-titles.js",
         "seed": "node --env-file=.env scripts/seed.js",
         "repair-media": "node --env-file=.env scripts/repair-media.js",
         "more-media": "node --env-file=.env scripts/more-media.js"

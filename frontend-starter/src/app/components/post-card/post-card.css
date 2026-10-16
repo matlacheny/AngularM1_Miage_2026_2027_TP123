@@ -14,6 +14,8 @@
 .menu-panel button { white-space: nowrap; }
 .danger-text { color: var(--danger); }
 
+.title { margin: 0.9rem 0 0; font-size: 1.1rem; font-weight: 700; overflow-wrap: anywhere; }
+.title + .text { margin-top: 0.4rem; }
 .text { margin: 0.9rem 0 0.7rem; font-size: 1.02rem; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
 
 .tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; }

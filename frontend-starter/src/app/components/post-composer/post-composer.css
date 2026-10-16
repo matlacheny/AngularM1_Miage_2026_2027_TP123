@@ -20,6 +20,9 @@ textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; 
 .file-name { flex: 1; min-width: 0; overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
 .icon-button { padding: 0.3rem; color: var(--muted); }
 
+.title-field { margin: 0.8rem 0 0; }
+.title-field input { background: var(--surface-2); }
+
 .options { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; align-items: start; }
 .options label { margin: 0.8rem 0; }
 

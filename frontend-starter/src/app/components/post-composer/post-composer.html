@@ -20,6 +20,10 @@
   }
 
   @if (expanded()) {
+    <label class="title-field">
+      Titre (facultatif)
+      <input [formControl]="title" maxlength="120" placeholder="Décollage plein PC, Leclerc au tir…" autocomplete="off" />
+    </label>
     <div class="options">
       <app-vehicle-picker [(selected)]="vehicle" />
       <label>

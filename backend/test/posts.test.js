@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import { createApp } from "../src/app.js";
 import { Comment } from "../src/models/Comment.js";
 import { Media } from "../src/models/Media.js";
-import { Post, publicPostPipeline } from "../src/models/Post.js";
+import { Post, postTitle, publicPostPipeline } from "../src/models/Post.js";
 import { User } from "../src/models/User.js";
 import { Vehicle } from "../src/models/Vehicle.js";
 import { searchCondition, widest } from "../src/routes/posts.js";
@@ -225,6 +225,31 @@ test("DELETE /api/posts/:id : auteur uniquement, commentaires supprimés", async
   assert.equal(String(removedComments.postId), POST_ID);
 });
 
+test("postTitle : intitulé choisi, sinon titre du média, sinon première ligne du texte", () => {
+  assert.equal(postTitle("  Décollage plein PC ", "IMG_0042"), "Décollage plein PC");
+  assert.equal(postTitle("", "Rafale au roulage", "Passage bas"), "Rafale au roulage");
+  assert.equal(postTitle(undefined, null, " Passage bas\nSource : Commons"), "Passage bas");
+  assert.equal(postTitle("", null, ""), "");
+  assert.equal(postTitle("x".repeat(200)).length, 120);
+});
+
+test("POST /api/posts : intitulé enregistré, repris du média s'il manque, 120 caractères au plus", async (t) => {
+  const media = { id: MEDIA_ID, _id: new mongoose.Types.ObjectId(MEDIA_ID), title: "Rafale au roulage", visibility: "public", vehicleId: null };
+  const created = [];
+  stub(t, Media, "findOne", async () => media);
+  stub(t, Post, "create", async (data) => {
+    created.push(data);
+    return { id: POST_ID };
+  });
+  stubAggregate(t, Post, [shapedPost()]);
+  const publish = (body) => fetch(`${base}/api/posts`, { method: "POST", headers: json(), body: JSON.stringify(body) });
+
+  assert.equal((await publish({ title: " Décollage plein PC ", mediaId: MEDIA_ID })).status, 201);
+  assert.equal((await publish({ mediaId: MEDIA_ID })).status, 201);
+  assert.deepEqual(created.map((c) => c.title), ["Décollage plein PC", "Rafale au roulage"]);
+  assert.equal((await publish({ title: "x".repeat(121), text: "ok" })).status, 400);
+});
+
 // ---------------------------------------------------------------------------
 // J'aime
 // ---------------------------------------------------------------------------
@@ -306,13 +331,16 @@ function stubSearch(t, ids = {}) {
 /** La regex ne trouve que le texte littéral : ".*" n'est pas un joker. */
 const literal = (source, text = "Mirage.*") => new RegExp(source).test(text) && !new RegExp(source).test("Mirage 2000");
 
-test("searchCondition : véhicule (nom ou alias) ou auteur, jamais le texte, regex échappée", async (t) => {
+test("searchCondition : intitulé, véhicule (nom ou alias) ou auteur, jamais le texte, regex échappée", async (t) => {
   const vehicleId = new mongoose.Types.ObjectId();
   const ownerId = new mongoose.Types.ObjectId();
   const filters = stubSearch(t, { vehicle: [vehicleId], user: [ownerId] });
 
   const condition = await searchCondition("Mirage.*");
-  assert.deepEqual(condition, { $or: [{ vehicleId: { $in: [vehicleId] } }, { ownerId: { $in: [ownerId] } }] });
+  const [title, ...others] = condition.$or;
+  assert.deepEqual(others, [{ vehicleId: { $in: [vehicleId] } }, { ownerId: { $in: [ownerId] } }]);
+  assert.ok(literal(title.title.$regex), "intitulé cherché, regex échappée");
+  assert.equal(title.title.$options, "i");
   const [name, alias] = filters.vehicle.$or;
   assert.ok(literal(name.name.$regex));
   assert.equal(name.name.$options, "i");
@@ -321,7 +349,7 @@ test("searchCondition : véhicule (nom ou alias) ou auteur, jamais le texte, reg
   assert.equal(filters.user.name.$options, "i");
 });
 
-test("GET /api/posts/feed?q=&media=1 : recherche par véhicule ou auteur, droits conservés", async (t) => {
+test("GET /api/posts/feed?q=&media=1 : recherche par intitulé, véhicule ou auteur, droits conservés", async (t) => {
   const vehicleId = new mongoose.Types.ObjectId();
   const filters = stubSearch(t, { vehicle: [vehicleId] });
   let match;
@@ -333,7 +361,8 @@ test("GET /api/posts/feed?q=&media=1 : recherche par véhicule ou auteur, droits
   const r = await fetch(`${base}/api/posts/feed?q=${encodeURIComponent("  hugo ")}&media=1`, { headers: bearer() });
   assert.equal(r.status, 200);
   assert.equal(filters.user.name.$regex, "hugo", "q est nettoyé");
-  assert.deepEqual(match.$and[0].$or[0], { vehicleId: { $in: [vehicleId] } });
+  assert.deepEqual(match.$and[0].$or[1], { vehicleId: { $in: [vehicleId] } });
+  assert.deepEqual(match.$and[0].$or[0], { title: { $regex: "hugo", $options: "i" } });
   assert.equal(match.text, undefined, "le texte du post n'est pas cherché");
   assert.deepEqual(match.mediaId, { $ne: null });
   assert.equal(String(match.$or[0].ownerId), USER, "les droits du lecteur restent la clé $or");
