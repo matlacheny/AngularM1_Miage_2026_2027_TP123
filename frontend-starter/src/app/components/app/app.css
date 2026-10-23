@@ -72,6 +72,7 @@ nav a.active app-icon { color: var(--accent); }
 .badge-count { margin-left: auto; padding: 0 0.5rem; color: #17130a; font-size: 0.8rem; font-weight: 700; background: var(--accent); border-radius: 999px; }
 
 .user-card {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;

@@ -8,6 +8,7 @@ import { Post, TITLE_MAX, postTitle, publicPostPipeline } from "../models/Post.j
 import { User } from "../models/User.js";
 import { Vehicle } from "../models/Vehicle.js";
 import { normalizeName } from "../wikipedia.js";
+import { notifications } from "../notifications.js";
 import { escapeRegExp, loadFriendIds, removeStoredFile, streamUrlFor } from "./media.js";
 
 const MEDIA_KINDS = ["audio", "image", "video"];
@@ -178,6 +179,7 @@ export function createPostsRouter() {
       const post = await Post.findOneAndDelete({ _id: req.params.id, ownerId: req.auth.sub });
       if (!post) return res.status(404).json({ message: "Publication inconnue" });
       await Comment.deleteMany({ postId: post._id });
+      await notifications.postDeleted(post._id);
       if (post.mediaId && !(await Post.exists({ mediaId: post.mediaId }))) {
         const media = await Media.findOneAndDelete({ _id: post.mediaId, ownerId: req.auth.sub }).select("+storedName");
         if (media) {
@@ -204,6 +206,8 @@ export function createPostsRouter() {
         { new: true },
       );
       if (!post) return res.status(404).json({ message: "Publication inconnue" });
+      // Notifie l'auteur du post (sans doublon si le J'aime existait déjà).
+      await (operator === "$addToSet" ? notifications.liked(post, viewer) : notifications.unliked(post, viewer));
       const likedByMe = post.likes.some((id) => id.equals(viewer));
       res.json({ likeCount: post.likes.length, likedByMe });
     } catch (error) {
@@ -245,6 +249,7 @@ export function createPostsRouter() {
       if (!post) return res.status(404).json({ message: "Publication inconnue" });
 
       const comment = await Comment.create({ postId: post._id, ownerId: req.auth.sub, text });
+      await notifications.commented(post, comment);
       const [shaped] = await Comment.aggregate(publicCommentPipeline(post._id)).match({ id: comment.id });
       console.log(`[posts] Commentaire ${comment.id} sur ${post.id}`);
       res.status(201).json({ comment: shaped ?? null, commentCount: post.commentCount });

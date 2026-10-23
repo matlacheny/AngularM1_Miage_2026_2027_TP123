@@ -1,0 +1,59 @@
+<button
+  type="button"
+  class="ghost icon-button bell"
+  [class.active]="open()"
+  [attr.aria-expanded]="open()"
+  aria-haspopup="true"
+  [attr.aria-label]="notifications.unreadCount() ? 'Notifications, ' + notifications.unreadCount() + ' non lue(s)' : 'Notifications'"
+  (click)="toggle()"
+>
+  <app-icon name="bell" />
+  @if (notifications.unreadCount()) {
+    <span class="badge">{{ notifications.unreadCount() > 9 ? '9+' : notifications.unreadCount() }}</span>
+  }
+</button>
+
+@if (open()) {
+  <section class="panel" aria-label="Notifications">
+    <header>
+      <h2>Notifications</h2>
+      <small>Interactions récentes sur vos posts</small>
+    </header>
+
+    @if (loading() && !notifications.items().length) {
+      <p class="empty">Chargement…</p>
+    } @else if (error()) {
+      <p class="empty error">{{ error() }}</p>
+    } @else {
+      <ul>
+        @for (n of notifications.items(); track n.id) {
+          <li>
+            <a [routerLink]="['/posts', n.post?.id]" [class.unread]="!n.read" (click)="open.set(false)">
+              <span class="who">
+                <app-avatar [name]="n.actor?.name" />
+                <span class="type" [class.like]="n.type === 'like'">
+                  <app-icon [name]="n.type === 'like' ? 'heart-filled' : 'message'" />
+                </span>
+              </span>
+              <span class="what">
+                <span><b>{{ n.actor?.name ?? 'Un membre' }}</b> {{ label(n) }}</span>
+                @if (n.post?.title) {
+                  <small class="post">« {{ n.post.title }} »</small>
+                }
+                @if (n.excerpt) {
+                  <small class="excerpt">{{ n.excerpt }}</small>
+                }
+              </span>
+              <time [attr.datetime]="n.createdAt">{{ when(n) }}</time>
+            </a>
+          </li>
+        } @empty {
+          <li class="empty">
+            <app-icon name="bell" />
+            Aucune interaction pour l'instant. Les J'aime et commentaires sur vos posts apparaîtront ici.
+          </li>
+        }
+      </ul>
+    }
+  </section>
+}

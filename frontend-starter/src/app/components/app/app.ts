@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, untracked } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon';
+import { NotificationBellComponent } from '../notification-bell/notification-bell';
 import { AuthService } from '../../shared/services/auth.service';
 import { FriendService } from '../../shared/services/friend.service';
 import { initials } from '../../shared/utils/format';
@@ -9,7 +10,7 @@ import { initials } from '../../shared/utils/format';
 /** Structure de l'application : barre latérale (connecté) ou page publique. */
 @Component({
   selector: 'app-root',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, ReactiveFormsModule, IconComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, ReactiveFormsModule, IconComponent, NotificationBellComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

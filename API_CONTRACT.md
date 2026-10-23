@@ -179,3 +179,28 @@ Erreurs :
 - `400` : `Membre invalide` (soi-même ou identifiant invalide), `Vous ne pouvez partager qu'avec un membre de votre escadrille`.
 - `404` : `Membre inconnu`, `Invitation inconnue`, `Ce membre n'est pas dans votre escadrille`, `Média inconnu`.
 - `409` : `Déjà dans votre escadrille`, `Invitation déjà envoyée`.
+
+## Notifications : J'aime et commentaires reçus
+
+Toutes les routes exigent `Authorization: Bearer <token>`. Chacun ne lit que ses propres notifications (destinataire = utilisateur du JWT).
+
+| Méthode | Route | Requête | Réponse principale |
+|---|---|---|---|
+| GET | `/notifications?limit=20` | JWT | `200 {items: Notification[], unreadCount}` (plus récentes d'abord ; `limit` de 1 à 50, 20 par défaut) |
+| POST | `/notifications/read` | JWT | `204` (toutes mes notifications passent à `read: true`) |
+
+`Notification` : `{ id, type, actor, post, excerpt, read, createdAt }` :
+- `type` vaut `like` ou `comment` ;
+- `actor` vaut `{ id, name }` (le membre qui a aimé ou commenté) ;
+- `post` vaut `{ id, title }` ;
+- `excerpt` : les 140 premiers caractères du commentaire (`""` pour un J'aime).
+
+Effets sur les autres routes :
+- `PUT /posts/:id/like` crée une notification pour l'auteur du post (une seule par membre et par post) ; `DELETE /posts/:id/like` la supprime.
+- `POST /posts/:id/comments` crée une notification pour l'auteur du post.
+- Aucune notification n'est créée pour une interaction sur son propre post.
+- `DELETE /posts/:id` supprime aussi les notifications du post.
+- Une erreur d'écriture de notification est journalisée mais ne fait pas échouer le J'aime ou le commentaire.
+
+Erreurs :
+- `401` : JWT absent, invalide ou expiré.

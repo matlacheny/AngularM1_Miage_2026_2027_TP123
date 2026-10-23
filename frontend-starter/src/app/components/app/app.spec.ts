@@ -39,6 +39,7 @@ describe('AppComponent', () => {
     const fixture = create();
     http.expectOne('/api/users/me').flush({ id: 'u1', name: 'Matteo Lacheny', email: 'm@example.com', createdAt: '' });
     http.expectOne('/api/friends').flush({ friends: [], incoming: [{ requestId: 'r1', user: { id: 'u2', name: 'Bob', location: '', bio: '' }, createdAt: '' }], outgoing: [] });
+    http.expectOne((r) => r.url === '/api/notifications').flush({ items: [], unreadCount: 2 });
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -48,6 +49,7 @@ describe('AppComponent', () => {
     expect(sidebar.querySelector('.badge-count')?.textContent).toBe('1'); // une invitation reçue
     expect(sidebar.querySelector('.avatar')?.textContent).toBe('ML');
     expect(sidebar.querySelector('.user-card b')?.textContent).toContain('Matteo Lacheny');
+    expect(sidebar.querySelector('app-notification-bell .badge')?.textContent?.trim()).toBe('2'); // non lues
   });
 
   it('la recherche de la barre latérale ouvre la page de recherche', () => {
@@ -55,6 +57,7 @@ describe('AppComponent', () => {
     const fixture = create();
     http.expectOne('/api/users/me').flush({ id: 'u1', name: 'M', email: 'm@example.com', createdAt: '' });
     http.expectOne('/api/friends').flush({ friends: [], incoming: [], outgoing: [] });
+    http.expectOne((r) => r.url === '/api/notifications').flush({ items: [], unreadCount: 0 });
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     fixture.componentInstance.search.setValue('  Rafale ');
